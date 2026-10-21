@@ -31,5 +31,5 @@ change_prompt() {
     export PS1="${venv_prompt} ${PS1:-}"
 }
 
-set_java_version 21
+set_java_version 25
 change_prompt '(venv)'
