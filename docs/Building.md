@@ -2,7 +2,7 @@
 ## Requirements
 Before building the project, make sure the following are installed on your system:
 - Java 25
-- Maven (for building the project)
+- Maven
 - Bash (for scripts)
 ## Build environment
 To ensure that no conflicts happen in the building of the project, the `buildenv.sh` script inside `scripts/` directory should be sourced before doing anything in this project.
