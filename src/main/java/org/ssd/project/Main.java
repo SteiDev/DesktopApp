@@ -23,6 +23,8 @@ public class Main extends Application {
     public static void main(String[] args) {
         Logger logger = LoggerFactory.getLogger(Main.class);
         logger.info("This is a test to see if the main logger works");
+        logger.info("Testing sqlite database");
+        SqliteDemo.testSqLite();
         launch();
     }
 
