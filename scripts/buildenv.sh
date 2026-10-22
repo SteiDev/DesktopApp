@@ -31,5 +31,26 @@ change_prompt() {
     export PS1="${venv_prompt} ${PS1:-}"
 }
 
+# Purpose: Setup environment variables
+# Description:
+#   Export environment variables that may be useful to the project
+# Note:
+#   Environment variables will be correctly loaded with both bash and zsh
+setup_env_vars() {
+    if [[ -n "${ZSH_VERSION:-}" ]]; then
+        local _src="${(%):-%x}"             # zsh: path of the file being sourced
+    elif [[ -n "${BASH_VERSION:-}" ]]; then
+        local _src="${BASH_SOURCE[0]}"      # bash: path of the file being sourced
+    else
+        printf "Unsupported shell\n"
+        exit 1
+    fi
+
+    local script_path="$(cd "$(dirname "$_src")" && pwd -P)/$(basename "$_src")"
+    local script_dir="$(dirname "$script_path")"
+    export DESKTOPAPP_ROOT="$(cd "$script_dir/.." && pwd -P)"
+}
+
 set_java_version 25
 change_prompt '(venv)'
+setup_env_vars
