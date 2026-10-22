@@ -6,6 +6,9 @@ import javafx.scene.control.Label;
 import javafx.scene.layout.StackPane;
 import javafx.stage.Stage;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 public class Main extends Application {
     @Override
     public void start(Stage stage) {
@@ -18,6 +21,8 @@ public class Main extends Application {
     }
 
     public static void main(String[] args) {
+        Logger logger = LoggerFactory.getLogger(Main.class);
+        logger.info("This is a test to see if the main logger works");
         launch();
     }
 
