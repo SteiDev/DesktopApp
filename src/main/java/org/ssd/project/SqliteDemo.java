@@ -7,8 +7,8 @@ public class SqliteDemo {
         String url = "jdbc:sqlite:data/test.db";
 
         try (Connection conn = DriverManager.getConnection(url)) {
-            System.out.println("Connected. SQLite version: "
-                    + conn.getMetaData().getDatabaseProductVersion());
+            System.out.println(
+                    "Connected. SQLite version: " + conn.getMetaData().getDatabaseProductVersion());
 
             createTable(conn);
             insertUser(conn, "Alice", 30);
@@ -27,7 +27,8 @@ public class SqliteDemo {
     }
 
     private static void createTable(Connection conn) throws SQLException {
-        String sql = """
+        String sql =
+                """
             CREATE TABLE IF NOT EXISTS users (
                 id   INTEGER PRIMARY KEY AUTOINCREMENT,
                 name TEXT NOT NULL,
@@ -51,10 +52,10 @@ public class SqliteDemo {
 
     private static void printAllUsers(Connection conn) throws SQLException {
         try (Statement stmt = conn.createStatement();
-             ResultSet rs = stmt.executeQuery("SELECT id, name, age FROM users")) {
+                ResultSet rs = stmt.executeQuery("SELECT id, name, age FROM users")) {
             while (rs.next()) {
-                System.out.printf("%d | %s | %d%n",
-                        rs.getInt("id"), rs.getString("name"), rs.getInt("age"));
+                System.out.printf(
+                        "%d | %s | %d%n", rs.getInt("id"), rs.getString("name"), rs.getInt("age"));
             }
         }
     }
@@ -65,7 +66,8 @@ public class SqliteDemo {
             ps.setInt(1, minAge);
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
-                    System.out.printf("%d | %s | %d%n",
+                    System.out.printf(
+                            "%d | %s | %d%n",
                             rs.getInt("id"), rs.getString("name"), rs.getInt("age"));
                 }
             }

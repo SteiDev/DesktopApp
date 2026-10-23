@@ -1,7 +1,7 @@
-import org.junit.jupiter.api.Test;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import org.junit.jupiter.api.Test;
 import org.ssd.project.Main;
 
 public class MainTest {
@@ -15,7 +15,7 @@ public class MainTest {
         assertEquals(true, Main.returnTrue());
     }
 
-    //@Test
+    // @Test
     public void testReturnTrue3() {
         assertEquals(false, Main.returnTrue());
     }
