@@ -31,6 +31,8 @@
         <javafx.plugin.version>0.0.8</javafx.plugin.version>
         <compiler.plugin.version>3.16.0</compiler.plugin.version>
         <surefire.plugin.version>3.6.0</surefire.plugin.version>
+        <spotless.plugin.version>3.10.4</spotless.plugin.version>
+        <googleJavaFormat.spotless.plugin.version>1.36.0</googleJavaFormat.spotless.plugin.version>
     </properties>
 
     <build>
@@ -71,6 +73,39 @@
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
                 <version>${surefire.plugin.version}</version>
+            </plugin>
+
+            <!-- Formatter -->
+            <plugin>
+                <groupId>com.diffplug.spotless</groupId>
+                <artifactId>spotless-maven-plugin</artifactId>
+                <version>${spotless.plugin.version}</version>
+                <configuration>
+                    <java>
+                        <includes>
+                            <include>src/main/java/**/*.java</include>
+                            <include>src/test/java/**/*.java</include>
+                        </includes>
+
+                        <googleJavaFormat>
+                            <version>${googleJavaFormat.spotless.plugin.version}</version>
+                            <style>AOSP</style>
+                        </googleJavaFormat>
+
+                        <removeUnusedImports/>
+                        <importOrder/>
+                        <formatAnnotations/>
+                    </java>
+                </configuration>
+
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>check</goal>
+                        </goals>
+                        <phase>verify</phase>
+                    </execution>
+                </executions>
             </plugin>
         </plugins>
     </build>
