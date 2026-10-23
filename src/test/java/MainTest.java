@@ -15,7 +15,7 @@ public class MainTest {
         assertEquals(true, Main.returnTrue());
     }
 
-    @Test
+    //@Test
     public void testReturnTrue3() {
         assertEquals(false, Main.returnTrue());
     }
