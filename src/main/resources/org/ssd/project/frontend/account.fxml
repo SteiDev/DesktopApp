@@ -7,7 +7,7 @@
 <?import javafx.scene.layout.VBox?>
 <?import javafx.scene.shape.Circle?>
 
-<AnchorPane prefHeight="1080.0" prefWidth="1920.0" style="-fx-background-color: #3b3542;" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="AccountController">
+<AnchorPane prefHeight="1080.0" prefWidth="1920.0" style="-fx-background-color: #3b3542;" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="org.ssd.project.frontend.AccountController">
     
     <!-- Top-Right Decorative Ring -->
     <Circle centerX="1750.0" centerY="150.0" radius="320.0" stroke="#bfa1db" strokeWidth="4.0" style="-fx-fill: transparent;" opacity="0.35" />
