@@ -33,7 +33,7 @@ public class Main extends Application {
         logger.info("This is a test to see if the main logger works");
         logger.info("Testing sqlite database");
         SqliteDemo.testSqLite();
-        launch();
+        launch(args);
     }
 
     // For testing purposes
