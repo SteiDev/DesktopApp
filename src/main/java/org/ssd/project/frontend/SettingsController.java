@@ -5,8 +5,6 @@ import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.layout.HBox;
 
-import org.ssd.project.frontend.ResourcePaths;
-
 public class SettingsController {
 
     @FXML private Button audioEngineButton;
@@ -22,34 +20,39 @@ public class SettingsController {
     public void initialize() {
         // Toggle Audio Engine behavior
         if (audioEngineButton != null) {
-            audioEngineButton.setOnAction(event -> {
-                useMidi = !useMidi;
-                audioEngineButton.setText(useMidi ? "MIDI (Default)" : "Synthesizer Raw");
-                updateStatus("Audio engine configuration updated.");
-            });
+            audioEngineButton.setOnAction(
+                    event -> {
+                        useMidi = !useMidi;
+                        audioEngineButton.setText(useMidi ? "MIDI (Default)" : "Synthesizer Raw");
+                        updateStatus("Audio engine configuration updated.");
+                    });
         }
 
         // Toggle Theme behavior
         if (themeButton != null) {
-            themeButton.setOnAction(event -> {
-                updateStatus("Theme configuration is locked to Retro Dark.");
-            });
+            themeButton.setOnAction(
+                    event -> {
+                        updateStatus("Theme configuration is locked to Retro Dark.");
+                    });
         }
 
         // Cycle Volume levels
         if (volumeButton != null) {
-            volumeButton.setOnAction(event -> {
-                volumeLevel = (volumeLevel + 20) > 100 ? 20 : volumeLevel + 20;
-                volumeButton.setText(volumeLevel + "%");
-                updateStatus("Master volume adjusted to " + volumeLevel + "%.");
-            });
+            volumeButton.setOnAction(
+                    event -> {
+                        volumeLevel = (volumeLevel + 20) > 100 ? 20 : volumeLevel + 20;
+                        volumeButton.setText(volumeLevel + "%");
+                        updateStatus("Master volume adjusted to " + volumeLevel + "%.");
+                    });
         }
 
         // Wire up back button to return to Main Menu
         if (backButton != null) {
-            backButton.setOnMouseClicked(event -> {
-                ScreenManager.switchTo(ResourcePaths.FXML_MAIN_MENU, "SoundLab - Main Menu");
-            });
+            backButton.setOnMouseClicked(
+                    event -> {
+                        ScreenManager.switchTo(
+                                ResourcePaths.FXML_MAIN_MENU, "SoundLab - Main Menu");
+                    });
         }
     }
 

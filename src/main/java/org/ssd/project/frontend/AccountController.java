@@ -5,8 +5,6 @@ import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.layout.HBox;
 
-import org.ssd.project.frontend.ResourcePaths;
-
 public class AccountController {
 
     @FXML private Label usernameLabel;
@@ -29,7 +27,7 @@ public class AccountController {
 
         if (usernameLabel != null) usernameLabel.setText("Username: " + personalUsername);
         if (emailLabel != null) emailLabel.setText("Email: " + personalEmail);
-        
+
         if (passwordLabel != null) {
             passwordLabel.setText("Password: " + "*".repeat(rawPassword.length()));
         }
@@ -37,7 +35,7 @@ public class AccountController {
         if (quizzesCompletedLabel != null) {
             quizzesCompletedLabel.setText("Quizzes Completed: " + quizzesCompleted);
         }
-        
+
         if (accuracyLabel != null) {
             accuracyLabel.setText(String.format("Answer Accuracy: %.1f%%", accuracy));
         }
@@ -48,16 +46,19 @@ public class AccountController {
 
         // Wire up back button to main menu
         if (backButton != null) {
-            backButton.setOnMouseClicked(event -> {
-                ScreenManager.switchTo(ResourcePaths.FXML_MAIN_MENU, "SoundLab - Main Menu");
-            });
+            backButton.setOnMouseClicked(
+                    event -> {
+                        ScreenManager.switchTo(
+                                ResourcePaths.FXML_MAIN_MENU, "SoundLab - Main Menu");
+                    });
         }
 
         // Wire up logout button to login screen
         if (logoutButton != null) {
-            logoutButton.setOnMouseClicked(event -> {
-                ScreenManager.switchTo(ResourcePaths.FXML_LOGIN, "SoundLab - Login");
-            });
+            logoutButton.setOnMouseClicked(
+                    event -> {
+                        ScreenManager.switchTo(ResourcePaths.FXML_LOGIN, "SoundLab - Login");
+                    });
         }
     }
 

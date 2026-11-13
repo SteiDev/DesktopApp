@@ -5,12 +5,10 @@ import javafx.animation.Interpolator;
 import javafx.animation.ParallelTransition;
 import javafx.animation.TranslateTransition;
 import javafx.fxml.FXML;
+import javafx.scene.control.Button;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import javafx.util.Duration;
-import javafx.scene.control.Button;
-
-import org.ssd.project.frontend.ResourcePaths;
 
 public class MainMenuController {
 
@@ -30,49 +28,54 @@ public class MainMenuController {
     public void initialize() {
         // Wire up the profile button to go to the account screen
         if (profileButton != null) {
-            profileButton.setOnMouseClicked(event -> {
-                ScreenManager.switchTo(ResourcePaths.FXML_ACCOUNT, "SoundLab - Account");
-            });
+            profileButton.setOnMouseClicked(
+                    event -> {
+                        ScreenManager.switchTo(ResourcePaths.FXML_ACCOUNT, "SoundLab - Account");
+                    });
         }
 
         synthDropdown.setVisible(false);
         synthDropdown.setManaged(false);
-        synthMenuTrigger.setOnMouseClicked(event -> {
-            if (isQuizOpen) {
-                closeDropdown(quizDropdown, () -> isQuizOpen = false);
-            }
-            if (!isSynthOpen) {
-                openDropdown(synthDropdown);
-                isSynthOpen = true;
-            } else {
-                closeDropdown(synthDropdown, () -> isSynthOpen = false);
-            }
-        });
+        synthMenuTrigger.setOnMouseClicked(
+                event -> {
+                    if (isQuizOpen) {
+                        closeDropdown(quizDropdown, () -> isQuizOpen = false);
+                    }
+                    if (!isSynthOpen) {
+                        openDropdown(synthDropdown);
+                        isSynthOpen = true;
+                    } else {
+                        closeDropdown(synthDropdown, () -> isSynthOpen = false);
+                    }
+                });
 
         quizDropdown.setVisible(false);
         quizDropdown.setManaged(false);
-        quizMenuTrigger.setOnMouseClicked(event -> {
-            if (isSynthOpen) {
-                closeDropdown(synthDropdown, () -> isSynthOpen = false);
-            }
-            if (!isQuizOpen) {
-                openDropdown(quizDropdown);
-                isQuizOpen = true;
-            } else {
-                closeDropdown(quizDropdown, () -> isQuizOpen = false);
-            }
-        });
+        quizMenuTrigger.setOnMouseClicked(
+                event -> {
+                    if (isSynthOpen) {
+                        closeDropdown(synthDropdown, () -> isSynthOpen = false);
+                    }
+                    if (!isQuizOpen) {
+                        openDropdown(quizDropdown);
+                        isQuizOpen = true;
+                    } else {
+                        closeDropdown(quizDropdown, () -> isQuizOpen = false);
+                    }
+                });
 
         if (logoutButton != null) {
-            logoutButton.setOnMouseClicked(event -> {
-                ScreenManager.switchTo(ResourcePaths.FXML_LOGIN, "SoundLab - Login");
-            });
+            logoutButton.setOnMouseClicked(
+                    event -> {
+                        ScreenManager.switchTo(ResourcePaths.FXML_LOGIN, "SoundLab - Login");
+                    });
         }
 
         if (settingsButton != null) {
-            settingsButton.setOnAction(event -> {
-                ScreenManager.switchTo(ResourcePaths.FXML_SETTINGS, "SoundLab - Settings");
-            });
+            settingsButton.setOnAction(
+                    event -> {
+                        ScreenManager.switchTo(ResourcePaths.FXML_SETTINGS, "SoundLab - Settings");
+                    });
         }
     }
 
@@ -106,11 +109,12 @@ public class MainMenuController {
         slide.setInterpolator(Interpolator.EASE_IN);
 
         ParallelTransition closeAnim = new ParallelTransition(fade, slide);
-        closeAnim.setOnFinished(e -> {
-            dropdown.setVisible(false);
-            dropdown.setManaged(false);
-            onClosed.run();
-        });
+        closeAnim.setOnFinished(
+                e -> {
+                    dropdown.setVisible(false);
+                    dropdown.setManaged(false);
+                    onClosed.run();
+                });
         closeAnim.play();
     }
 }

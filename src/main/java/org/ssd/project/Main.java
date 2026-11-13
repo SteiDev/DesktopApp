@@ -1,9 +1,6 @@
 package org.ssd.project;
 
 import javafx.application.Application;
-import javafx.scene.Scene;
-import javafx.scene.control.Label;
-import javafx.scene.layout.StackPane;
 import javafx.scene.text.Font;
 import javafx.stage.Stage;
 import org.slf4j.Logger;
@@ -28,6 +25,7 @@ public class Main extends Application {
         ScreenManager.initialize(stage);
         ScreenManager.switchTo(ResourcePaths.FXML_LOGIN, "SoundLab - Login");
     }
+
     public static void main(String[] args) {
         Logger logger = LoggerFactory.getLogger(Main.class);
         logger.info("This is a test to see if the main logger works");
