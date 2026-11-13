@@ -1,6 +1,10 @@
+package org.ssd.project.frontend;
+
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.scene.control.Button;
+
+import org.ssd.project.frontend.ResourcePaths;
 
 public class LoginController {
 
@@ -11,7 +15,7 @@ public class LoginController {
     public void initialize() {
         if (loginButton != null) {
             loginButton.setOnMouseClicked(event -> {
-                ScreenManager.switchTo("main_menu.fxml", "SoundLab - Main Menu");
+                ScreenManager.switchTo(ResourcePaths.FXML_MAIN_MENU, "SoundLab - Main Menu");
             });
         }
 

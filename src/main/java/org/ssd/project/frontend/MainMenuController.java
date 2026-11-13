@@ -1,3 +1,5 @@
+package org.ssd.project.frontend;
+
 import javafx.animation.FadeTransition;
 import javafx.animation.Interpolator;
 import javafx.animation.ParallelTransition;
@@ -7,6 +9,8 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import javafx.util.Duration;
 import javafx.scene.control.Button;
+
+import org.ssd.project.frontend.ResourcePaths;
 
 public class MainMenuController {
 
@@ -27,7 +31,7 @@ public class MainMenuController {
         // Wire up the profile button to go to the account screen
         if (profileButton != null) {
             profileButton.setOnMouseClicked(event -> {
-                ScreenManager.switchTo("account.fxml", "SoundLab - Account");
+                ScreenManager.switchTo(ResourcePaths.FXML_ACCOUNT, "SoundLab - Account");
             });
         }
 
@@ -61,13 +65,13 @@ public class MainMenuController {
 
         if (logoutButton != null) {
             logoutButton.setOnMouseClicked(event -> {
-                ScreenManager.switchTo("login.fxml", "SoundLab - Login");
+                ScreenManager.switchTo(ResourcePaths.FXML_LOGIN, "SoundLab - Login");
             });
         }
 
         if (settingsButton != null) {
             settingsButton.setOnAction(event -> {
-                ScreenManager.switchTo("settings.fxml", "SoundLab - Settings");
+                ScreenManager.switchTo(ResourcePaths.FXML_SETTINGS, "SoundLab - Settings");
             });
         }
     }

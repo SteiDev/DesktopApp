@@ -1,7 +1,11 @@
+package org.ssd.project.frontend;
+
 import javafx.fxml.FXML;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.layout.HBox;
+
+import org.ssd.project.frontend.ResourcePaths;
 
 public class AccountController {
 
@@ -45,14 +49,14 @@ public class AccountController {
         // Wire up back button to main menu
         if (backButton != null) {
             backButton.setOnMouseClicked(event -> {
-                ScreenManager.switchTo("main_menu.fxml", "SoundLab - Main Menu");
+                ScreenManager.switchTo(ResourcePaths.FXML_MAIN_MENU, "SoundLab - Main Menu");
             });
         }
 
         // Wire up logout button to login screen
         if (logoutButton != null) {
             logoutButton.setOnMouseClicked(event -> {
-                ScreenManager.switchTo("login.fxml", "SoundLab - Login");
+                ScreenManager.switchTo(ResourcePaths.FXML_LOGIN, "SoundLab - Login");
             });
         }
     }
