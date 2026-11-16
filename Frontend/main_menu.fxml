@@ -21,43 +21,75 @@
         <Label text="John Doe" style="-fx-text-fill: #bfa1db; -fx-font-size: 32px; -fx-font-family: 'Super Mario World Text Box'; -fx-effect: dropshadow(three-pass-box, #1a1523, 0, 0, -4, 4);" />
     </HBox>
 
-    <!-- Center Menu Area with Marquee Subtitle Header -->
-    <VBox spacing="40.0" AnchorPane.leftAnchor="150.0" AnchorPane.topAnchor="340.0">
-        
-        <!-- Retro Subtitle Header -->
-        <Label text="SELECT MODULE" style="-fx-text-fill: #928ba7; -fx-font-size: 24px; -fx-font-family: 'Super Mario World Text Box'; -fx-effect: dropshadow(three-pass-box, #1a1523, 0, 0, -3, 3);" />
+    <!-- Large Tab Navigation Bar (Well spaced out below the profile box) -->
+    <HBox alignment="CENTER_LEFT" spacing="30.0" AnchorPane.leftAnchor="60.0" AnchorPane.topAnchor="180.0">
+        <Button fx:id="synthTabBtn" text="Synthesizer" style="-fx-background-color: #4b4459; -fx-text-fill: #bfa1db; -fx-font-family: 'Super Mario World Text Box'; -fx-font-size: 28px; -fx-border-color: #2b2633; -fx-border-width: 3px; -fx-cursor: hand; -fx-pref-height: 72px; -fx-padding: 0 45px; -fx-effect: dropshadow(three-pass-box, #1a1523, 0, 0, -3, 3);" />
+        <Button fx:id="quizTabBtn" text="Exercises" style="-fx-background-color: #4b4459; -fx-text-fill: #bfa1db; -fx-font-family: 'Super Mario World Text Box'; -fx-font-size: 28px; -fx-border-color: #2b2633; -fx-border-width: 3px; -fx-cursor: hand; -fx-pref-height: 72px; -fx-padding: 0 45px; -fx-effect: dropshadow(three-pass-box, #1a1523, 0, 0, -3, 3);" />
+        <Button fx:id="dashboardTabBtn" text="Learning Dashboard" style="-fx-background-color: #4b4459; -fx-text-fill: #bfa1db; -fx-font-family: 'Super Mario World Text Box'; -fx-font-size: 28px; -fx-border-color: #2b2633; -fx-border-width: 3px; -fx-cursor: hand; -fx-pref-height: 72px; -fx-padding: 0 45px; -fx-effect: dropshadow(three-pass-box, #1a1523, 0, 0, -3, 3);" />
+    </HBox>
 
-        <!-- Navigation Options Container -->
-        <AnchorPane>
-            <!-- Synthesizer Menu Item Trigger -->
-            <HBox fx:id="synthMenuTrigger" alignment="CENTER_LEFT" spacing="20.0" style="-fx-cursor: hand;" AnchorPane.leftAnchor="0.0" AnchorPane.topAnchor="0.0">
-                <Label text="Synthesizer" style="-fx-text-fill: #bfa1db; -fx-font-size: 48px; -fx-font-family: 'Super Mario World Text Box'; -fx-effect: dropshadow(three-pass-box, #1a1523, 0, 0, -6, 6);" />
-                <Label text="->" style="-fx-text-fill: #bfa1db; -fx-font-size: 48px; -fx-font-family: 'Hack'; -fx-effect: dropshadow(three-pass-box, #1a1523, 0, 0, -6, 6);" />
-            </HBox>
+    <!-- TAB 1: SYNTHESIZER OPTIONS PANE -->
+    <AnchorPane fx:id="synthPane" AnchorPane.leftAnchor="150.0" AnchorPane.topAnchor="320.0" AnchorPane.rightAnchor="150.0" AnchorPane.bottomAnchor="140.0">
+        <VBox spacing="45.0" AnchorPane.leftAnchor="0.0" AnchorPane.topAnchor="60.0">
+            <Label text="SELECT SYNTHESIZER ARCHITECTURE" style="-fx-text-fill: #928ba7; -fx-font-size: 26px; -fx-font-family: 'Super Mario World Text Box'; -fx-effect: dropshadow(three-pass-box, #1a1523, 0, 0, -3, 3);" />
 
-            <!-- Synthesizer Dropdown Options List -->
-            <VBox fx:id="synthDropdown" managed="false" visible="false" spacing="35.0" AnchorPane.leftAnchor="530.0" AnchorPane.topAnchor="2.0">
-                <Label text="Organ" style="-fx-text-fill: #bfa1db; -fx-font-size: 42px; -fx-font-family: 'Super Mario World Text Box'; -fx-cursor: hand; -fx-effect: dropshadow(three-pass-box, #1a1523, 0, 0, -5, 5);" />
-                <Label text="Acoustic Grand Piano" style="-fx-text-fill: #bfa1db; -fx-font-size: 42px; -fx-font-family: 'Super Mario World Text Box'; -fx-cursor: hand; -fx-effect: dropshadow(three-pass-box, #1a1523, 0, 0, -5, 5);" />
-                <Label text="Synth Lead" style="-fx-text-fill: #bfa1db; -fx-font-size: 42px; -fx-font-family: 'Super Mario World Text Box'; -fx-cursor: hand; -fx-effect: dropshadow(three-pass-box, #1a1523, 0, 0, -5, 5);" />
+            <VBox spacing="45.0">
+                <!-- Acoustic Grand Piano Option -->
+                <HBox fx:id="pianoOption" alignment="CENTER_LEFT" spacing="25.0" style="-fx-cursor: hand;">
+                    <Label text="Acoustic Grand Piano" style="-fx-text-fill: #bfa1db; -fx-font-size: 40px; -fx-font-family: 'Super Mario World Text Box'; -fx-effect: dropshadow(three-pass-box, #1a1523, 0, 0, -5, 5);" />
+                    <Label text="-&gt;" style="-fx-text-fill: #bfa1db; -fx-font-size: 46px; -fx-font-family: 'Hack', monospace; -fx-effect: dropshadow(three-pass-box, #1a1523, 0, 0, -5, 5);" />
+                </HBox>
+
+                <!-- Organ Option -->
+                <HBox fx:id="organOption" alignment="CENTER_LEFT" spacing="25.0" style="-fx-cursor: hand;">
+                    <Label text="Organ" style="-fx-text-fill: #bfa1db; -fx-font-size: 40px; -fx-font-family: 'Super Mario World Text Box'; -fx-effect: dropshadow(three-pass-box, #1a1523, 0, 0, -5, 5);" />
+                    <Label text="-&gt;" style="-fx-text-fill: #bfa1db; -fx-font-size: 46px; -fx-font-family: 'Hack', monospace; -fx-effect: dropshadow(three-pass-box, #1a1523, 0, 0, -5, 5);" />
+                </HBox>
+
+                <!-- Synth Lead Option -->
+                <HBox fx:id="leadOption" alignment="CENTER_LEFT" spacing="25.0" style="-fx-cursor: hand;">
+                    <Label text="Synth Lead" style="-fx-text-fill: #bfa1db; -fx-font-size: 40px; -fx-font-family: 'Super Mario World Text Box'; -fx-effect: dropshadow(three-pass-box, #1a1523, 0, 0, -5, 5);" />
+                    <Label text="-&gt;" style="-fx-text-fill: #bfa1db; -fx-font-size: 46px; -fx-font-family: 'Hack', monospace; -fx-effect: dropshadow(three-pass-box, #1a1523, 0, 0, -5, 5);" />
+                </HBox>
             </VBox>
+        </VBox>
+    </AnchorPane>
 
-            <!-- Quiz Menu Item Trigger -->
-            <HBox fx:id="quizMenuTrigger" alignment="CENTER_LEFT" spacing="20.0" style="-fx-cursor: hand;" AnchorPane.leftAnchor="0.0" AnchorPane.topAnchor="200.0">
-                <Label text="Quiz" style="-fx-text-fill: #bfa1db; -fx-font-size: 48px; -fx-font-family: 'Super Mario World Text Box'; -fx-effect: dropshadow(three-pass-box, #1a1523, 0, 0, -6, 6);" />
-                <Label text="->" style="-fx-text-fill: #bfa1db; -fx-font-size: 48px; -fx-font-family: 'Hack'; -fx-effect: dropshadow(three-pass-box, #1a1523, 0, 0, -6, 6);" />
-            </HBox>
+    <!-- TAB 2: QUIZ OPTIONS PANE (Initially Hidden) -->
+    <AnchorPane fx:id="quizPane" visible="false" managed="false" AnchorPane.leftAnchor="150.0" AnchorPane.topAnchor="320.0" AnchorPane.rightAnchor="150.0" AnchorPane.bottomAnchor="140.0">
+        <VBox spacing="45.0" AnchorPane.leftAnchor="0.0" AnchorPane.topAnchor="60.0">
+            <Label text="SELECT QUIZ MODULE" style="-fx-text-fill: #928ba7; -fx-font-size: 26px; -fx-font-family: 'Super Mario World Text Box'; -fx-effect: dropshadow(three-pass-box, #1a1523, 0, 0, -3, 3);" />
 
-            <!-- Quiz Dropdown Options List -->
-            <VBox fx:id="quizDropdown" managed="false" visible="false" spacing="35.0" AnchorPane.leftAnchor="310.0" AnchorPane.topAnchor="202.0">
-                <Label text="Start Quiz" style="-fx-text-fill: #bfa1db; -fx-font-size: 42px; -fx-font-family: 'Super Mario World Text Box'; -fx-cursor: hand; -fx-effect: dropshadow(three-pass-box, #1a1523, 0, 0, -5, 5);" />
-                <Label text="Review Past Quizzes" style="-fx-text-fill: #bfa1db; -fx-font-size: 42px; -fx-font-family: 'Super Mario World Text Box'; -fx-cursor: hand; -fx-effect: dropshadow(three-pass-box, #1a1523, 0, 0, -5, 5);" />
+            <VBox spacing="45.0">
+                <!-- Start Quiz Option -->
+                <HBox fx:id="startQuizOption" alignment="CENTER_LEFT" spacing="25.0" style="-fx-cursor: hand;">
+                    <Label text="Start Interactive Quiz" style="-fx-text-fill: #bfa1db; -fx-font-size: 40px; -fx-font-family: 'Super Mario World Text Box'; -fx-effect: dropshadow(three-pass-box, #1a1523, 0, 0, -5, 5);" />
+                    <Label text="-&gt;" style="-fx-text-fill: #bfa1db; -fx-font-size: 46px; -fx-font-family: 'Hack', monospace; -fx-effect: dropshadow(three-pass-box, #1a1523, 0, 0, -5, 5);" />
+                </HBox>
+
+                <!-- Review Past Quizzes Option -->
+                <HBox fx:id="reviewQuizOption" alignment="CENTER_LEFT" spacing="25.0" style="-fx-cursor: hand;">
+                    <Label text="Review Past Quizzes &amp; Stats" style="-fx-text-fill: #bfa1db; -fx-font-size: 40px; -fx-font-family: 'Super Mario World Text Box'; -fx-effect: dropshadow(three-pass-box, #1a1523, 0, 0, -5, 5);" />
+                    <Label text="-&gt;" style="-fx-text-fill: #bfa1db; -fx-font-size: 46px; -fx-font-family: 'Hack', monospace; -fx-effect: dropshadow(three-pass-box, #1a1523, 0, 0, -5, 5);" />
+                </HBox>
             </VBox>
-        </AnchorPane>
-    </VBox>
+        </VBox>
+    </AnchorPane>
 
-    <!-- Bottom-Left Settings Button (Matching Logout Style) -->
-    <Button fx:id="settingsButton" text="⚙ Settings" style="-fx-background-color: #4b4459; -fx-text-fill: #bfa1db; -fx-font-family: 'Super Mario World Text Box'; -fx-font-size: 22px; -fx-pref-height: 48px; -fx-border-color: #2b2633; -fx-border-width: 3px; -fx-cursor: hand; -fx-effect: dropshadow(three-pass-box, #1a1523, 0, 0, -3, 3);" AnchorPane.bottomAnchor="60.0" AnchorPane.leftAnchor="80.0" />
+    <!-- TAB 3: LEARNING DASHBOARD PANE (Initially Hidden) -->
+    <AnchorPane fx:id="dashboardPane" visible="false" managed="false" AnchorPane.leftAnchor="150.0" AnchorPane.topAnchor="320.0" AnchorPane.rightAnchor="150.0" AnchorPane.bottomAnchor="140.0">
+        <VBox spacing="45.0" AnchorPane.leftAnchor="0.0" AnchorPane.topAnchor="60.0">
+            <Label text="SELECT LEARNING DASHBOARD" style="-fx-text-fill: #928ba7; -fx-font-size: 26px; -fx-font-family: 'Super Mario World Text Box'; -fx-effect: dropshadow(three-pass-box, #1a1523, 0, 0, -3, 3);" />
+
+            <VBox spacing="45.0">
+                <!-- Open Dashboard Option -->
+                <HBox fx:id="openDashboardOption" alignment="CENTER_LEFT" spacing="25.0" style="-fx-cursor: hand;">
+                    <Label text="Learning Dashboard &amp; Progress" style="-fx-text-fill: #bfa1db; -fx-font-size: 40px; -fx-font-family: 'Super Mario World Text Box'; -fx-effect: dropshadow(three-pass-box, #1a1523, 0, 0, -5, 5);" />
+                    <Label text="-&gt;" style="-fx-text-fill: #bfa1db; -fx-font-size: 46px; -fx-font-family: 'Hack', monospace; -fx-effect: dropshadow(three-pass-box, #1a1523, 0, 0, -5, 5);" />
+                </HBox>
+            </VBox>
+        </VBox>
+    </AnchorPane>
 
     <!-- Bottom-Right Logout Button -->
     <Button fx:id="logoutButton" text="Logout" style="-fx-background-color: #4b4459; -fx-text-fill: #bfa1db; -fx-font-family: 'Super Mario World Text Box'; -fx-font-size: 22px; -fx-pref-height: 48px; -fx-border-color: #2b2633; -fx-border-width: 3px; -fx-cursor: hand; -fx-effect: dropshadow(three-pass-box, #1a1523, 0, 0, -3, 3);" AnchorPane.bottomAnchor="60.0" AnchorPane.rightAnchor="80.0" />

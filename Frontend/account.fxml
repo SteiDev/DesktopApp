@@ -21,35 +21,45 @@
         <!-- Info Box Container -->
         <VBox spacing="20.0" style="-fx-background-color: #928ba7; -fx-padding: 40px; -fx-border-color: #2b2633; -fx-border-width: 5px; -fx-pref-width: 900px;">
             
-            <!-- User Credentials Section -->
-            <Label fx:id="usernameLabel" text="Username: John Doe" style="-fx-text-fill: white; -fx-font-size: 28px; -fx-font-family: 'Super Mario World Text Box';" />
+            <!-- Username Row with Change Button -->
+            <HBox alignment="CENTER_LEFT" spacing="30.0">
+                <Label fx:id="usernameLabel" text="Username: John Doe" style="-fx-text-fill: white; -fx-font-size: 28px; -fx-font-family: 'Super Mario World Text Box';" HBox.hgrow="ALWAYS" />
+                <Button fx:id="changeUsernameButton" text="Change" style="-fx-background-color: #4b4459; -fx-text-fill: #bfa1db; -fx-font-family: 'Super Mario World Text Box'; -fx-font-size: 18px; -fx-border-color: #2b2633; -fx-border-width: 3px; -fx-cursor: hand; -fx-effect: dropshadow(three-pass-box, #1a1523, 0, 0, -2, 2);" />
+            </HBox>
+
+            <!-- Email Row -->
             <Label fx:id="emailLabel" text="Email: user@soundlab.com" style="-fx-text-fill: white; -fx-font-size: 28px; -fx-font-family: 'Super Mario World Text Box';" />
-            <Label fx:id="passwordLabel" text="Password: ********" style="-fx-text-fill: white; -fx-font-size: 28px; -fx-font-family: 'Super Mario World Text Box';" />
 
-            <!-- Spacer Line / Gap -->
-            <VBox prefHeight="10.0" />
-
-            <!-- Statistics Section -->
-            <Label fx:id="quizzesCompletedLabel" text="Quizzes Completed: 12" style="-fx-text-fill: white; -fx-font-size: 28px; -fx-font-family: 'Super Mario World Text Box';" />
-            <Label fx:id="accuracyLabel" text="Answer Accuracy: 88.5%" style="-fx-text-fill: white; -fx-font-size: 28px; -fx-font-family: 'Super Mario World Text Box';" />
-
-            <!-- Spacer Line / Gap -->
-            <VBox prefHeight="10.0" />
-
-            <!-- Recommendations Section -->
-            <Label text="Recommended Exercises:" style="-fx-text-fill: #3b3542; -fx-font-size: 32px; -fx-font-family: 'Super Mario World Text Box';" />
-            <Label fx:id="recommendationLabel" text="- Interval Training: Minor Thirds&#10;- Chord Recognition: Dominant 7th" style="-fx-text-fill: white; -fx-font-size: 24px; -fx-font-family: 'Super Mario World Text Box';" />
+            <!-- Password Row with Change Button -->
+            <HBox alignment="CENTER_LEFT" spacing="30.0">
+                <Label fx:id="passwordLabel" text="Password: ********" style="-fx-text-fill: white; -fx-font-size: 28px; -fx-font-family: 'Super Mario World Text Box';" HBox.hgrow="ALWAYS" />
+                <Button fx:id="changePasswordButton" text="Change" style="-fx-background-color: #4b4459; -fx-text-fill: #bfa1db; -fx-font-family: 'Super Mario World Text Box'; -fx-font-size: 18px; -fx-border-color: #2b2633; -fx-border-width: 3px; -fx-cursor: hand; -fx-effect: dropshadow(three-pass-box, #1a1523, 0, 0, -2, 2);" />
+            </HBox>
         </VBox>
     </VBox>
 
-    <!-- Bottom-Left Back to Menu Button (Using Hack font for a clean arrow) -->
-    <!-- Bottom-Left Back to Menu Button (Split Fonts) -->
+    <!-- Bottom-Left Back to Menu Button -->
     <HBox alignment="CENTER_LEFT" spacing="8.0" style="-fx-cursor: hand;" AnchorPane.bottomAnchor="60.0" AnchorPane.leftAnchor="80.0" fx:id="backButton">
         <Label text="&lt;-" style="-fx-text-fill: #bfa1db; -fx-font-size: 28px; -fx-font-family: 'Hack', monospace; -fx-effect: dropshadow(three-pass-box, #1a1523, 0, 0, -3, 3);" />
         <Label text="Back" style="-fx-text-fill: #bfa1db; -fx-font-size: 28px; -fx-font-family: 'Super Mario World Text Box'; -fx-effect: dropshadow(three-pass-box, #1a1523, 0, 0, -3, 3);" />
     </HBox>
 
-    <!-- Bottom-Right Logout Button (Matching Shutdown style) -->
-    <Button fx:id="logoutButton" text="Logout" style="-fx-background-color: #4b4459; -fx-text-fill: #bfa1db; -fx-font-family: 'Super Mario World Text Box'; -fx-font-size: 22px; -fx-pref-height: 48px; -fx-border-color: #2b2633; -fx-border-width: 3px; -fx-cursor: hand; -fx-effect: dropshadow(three-pass-box, #1a1523, 0, 0, -3, 3);" AnchorPane.bottomAnchor="60.0" AnchorPane.rightAnchor="80.0" />
+    <!-- Bottom-Right Action Buttons Container -->
+    <HBox spacing="15.0" alignment="CENTER_RIGHT" AnchorPane.bottomAnchor="60.0" AnchorPane.rightAnchor="80.0">
+        <Button fx:id="deleteAccountButton" text="Delete Account" style="-fx-background-color: #594444; -fx-text-fill: #bfa1db; -fx-font-family: 'Super Mario World Text Box'; -fx-font-size: 22px; -fx-pref-height: 48px; -fx-border-color: #2b2633; -fx-border-width: 3px; -fx-cursor: hand; -fx-effect: dropshadow(three-pass-box, #1a1523, 0, 0, -3, 3);" />
+        <Button fx:id="logoutButton" text="Logout" style="-fx-background-color: #4b4459; -fx-text-fill: #bfa1db; -fx-font-family: 'Super Mario World Text Box'; -fx-font-size: 22px; -fx-pref-height: 48px; -fx-border-color: #2b2633; -fx-border-width: 3px; -fx-cursor: hand; -fx-effect: dropshadow(three-pass-box, #1a1523, 0, 0, -3, 3);" />
+    </HBox>
+
+    <!-- Custom Retro Confirmation Modal Overlay (Initially Hidden) -->
+    <AnchorPane fx:id="deleteModal" visible="false" managed="false" style="-fx-background-color: rgba(26, 21, 35, 0.85);" AnchorPane.topAnchor="0.0" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0">
+        <VBox alignment="CENTER" spacing="30.0" style="-fx-background-color: #928ba7; -fx-padding: 50px; -fx-border-color: #2b2633; -fx-border-width: 5px; -fx-effect: dropshadow(three-pass-box, #1a1523, 0, 0, -10, 10);" AnchorPane.leftAnchor="350.0" AnchorPane.rightAnchor="350.0" AnchorPane.topAnchor="300.0">
+            <Label text="Permanently Delete Account?" style="-fx-text-fill: #3b3542; -fx-font-size: 32px; -fx-font-family: 'Super Mario World Text Box';" />
+            <Label text="Are you sure you want to delete your SoundLab account?&#10;This action cannot be undone." wrapText="true" textAlignment="CENTER" style="-fx-text-fill: white; -fx-font-size: 22px; -fx-font-family: 'Super Mario World Text Box';" />
+            <HBox alignment="CENTER" spacing="40.0">
+                <Button fx:id="cancelDeleteButton" text="Cancel" style="-fx-background-color: #4b4459; -fx-text-fill: #bfa1db; -fx-font-family: 'Super Mario World Text Box'; -fx-font-size: 22px; -fx-pref-height: 48px; -fx-border-color: #2b2633; -fx-border-width: 3px; -fx-cursor: hand; -fx-effect: dropshadow(three-pass-box, #1a1523, 0, 0, -3, 3);" />
+                <Button fx:id="confirmDeleteButton" text="Delete" style="-fx-background-color: #594444; -fx-text-fill: #bfa1db; -fx-font-family: 'Super Mario World Text Box'; -fx-font-size: 22px; -fx-pref-height: 48px; -fx-border-color: #2b2633; -fx-border-width: 3px; -fx-cursor: hand; -fx-effect: dropshadow(three-pass-box, #1a1523, 0, 0, -3, 3);" />
+            </HBox>
+        </VBox>
+    </AnchorPane>
 
 </AnchorPane>
