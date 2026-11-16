@@ -3,7 +3,7 @@ package org.ssd.project.accounts;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 
 /** Hashes and verifies passwords using BCrypt. */
-public class BCryptPasswordService implements IPasswordService {
+public final class BCryptPasswordService implements IPasswordService {
     private static final int PASSWORD_STREGTH = 12;
 
     private final BCryptPasswordEncoder encoder = new BCryptPasswordEncoder(PASSWORD_STREGTH);

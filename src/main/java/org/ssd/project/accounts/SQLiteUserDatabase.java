@@ -8,7 +8,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.sqlite.SQLiteConfig;
 
-public class SQLiteUserDatabase implements IUserRepository {
+public final class SQLiteUserDatabase implements IUserRepository {
     private static final Logger log = LoggerFactory.getLogger(SQLiteUserDatabase.class);
     private final IPasswordService passwordService = new BCryptPasswordService();
 
