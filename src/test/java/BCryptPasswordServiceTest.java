@@ -5,7 +5,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.ssd.project.accounts.BCryptPasswordService;
 
-class PasswordServiceTest {
+class BCryptPasswordServiceTest {
 
     private BCryptPasswordService passwordService;
 
