@@ -1,18 +1,19 @@
 package org.ssd.project.accounts;
 
-import org.slf4j.LoggerFactory;
-import org.slf4j.Logger;
-import org.sqlite.SQLiteConfig;
-
 import java.sql.*;
 import java.util.Locale;
 import java.util.Optional;
+import java.util.Properties;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.sqlite.SQLiteConfig;
 
 public class SQLiteUserDatabase implements IUserRepository {
     private static final Logger log = LoggerFactory.getLogger(SQLiteUserDatabase.class);
-    private final PasswordService passwordService = new PasswordService();
+    private final IPasswordService passwordService = new BCryptPasswordService();
 
     private final String url;
+    private final Properties configProperties;
 
     /* Default constructor */
     public SQLiteUserDatabase() {
@@ -25,6 +26,7 @@ public class SQLiteUserDatabase implements IUserRepository {
         SQLiteConfig config = new SQLiteConfig();
         config.enforceForeignKeys(true);
         config.setBusyTimeout(5000);
+        configProperties = config.toProperties();
 
         log.debug("Initializing SQLite repository at {}", url);
 
@@ -37,7 +39,7 @@ public class SQLiteUserDatabase implements IUserRepository {
     }
 
     private Connection connect() throws SQLException {
-        return DriverManager.getConnection(url);
+        return DriverManager.getConnection(url, configProperties);
     }
 
     private void createUsersTable() {
@@ -50,12 +52,13 @@ public class SQLiteUserDatabase implements IUserRepository {
             password_hash TEXT NOT NULL
             )
             """;
-        try (Connection conn = connect(); Statement st = conn.createStatement()) {
+        try (Connection conn = connect();
+                Statement st = conn.createStatement()) {
             st.execute(sql);
             log.info("Users table schema ready ({})", url);
         } catch (SQLException e) {
             log.error("Could not initialize users table schema", e);
-            System.exit(1);
+            throw new IllegalStateException("Could not initialize users table schema", e);
         }
     }
 
@@ -67,17 +70,20 @@ public class SQLiteUserDatabase implements IUserRepository {
     public Optional<User> saveUser(String username, String email, String rawPassword) {
         String sql = "INSERT INTO users (username, email, password_hash) VALUES (?, ?, ?)";
         String normalizedEmail = normalizeEmail(email);
+        String passwordHash = passwordService.hash(rawPassword);
+
         try (Connection conn = connect();
-             PreparedStatement ps = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+                PreparedStatement ps =
+                        conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
             ps.setString(1, username);
             ps.setString(2, normalizedEmail);
-            ps.setString(3, passwordService.hash(rawPassword));
+            ps.setString(3, passwordHash);
             ps.executeUpdate();
 
             try (ResultSet keys = ps.getGeneratedKeys()) {
                 long id = keys.next() ? keys.getLong(1) : 0;
                 log.info("Saved new user id={}", id);
-                return Optional.of(new User(id, username, normalizedEmail, rawPassword));
+                return Optional.of(new User(id, username, normalizedEmail, passwordHash));
             }
         } catch (SQLException e) {
             /* The email must be unique */
@@ -94,7 +100,8 @@ public class SQLiteUserDatabase implements IUserRepository {
     public Optional<User> login(String email, String rawPassword) {
         String sql = "SELECT id, username, email, password_hash FROM users WHERE email = ?";
 
-        try (Connection conn = connect(); PreparedStatement ps = conn.prepareStatement(sql)) {
+        try (Connection conn = connect();
+                PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setString(1, normalizeEmail(email));
             try (ResultSet rs = ps.executeQuery()) {
                 /* No account with that email exists */
@@ -111,7 +118,8 @@ public class SQLiteUserDatabase implements IUserRepository {
                     return Optional.empty();
                 }
                 log.info("Login OK for user id={}", id);
-                return Optional.of(new User(id, rs.getString("username"), rs.getString("email"), hash));
+                return Optional.of(
+                        new User(id, rs.getString("username"), rs.getString("email"), hash));
             }
         } catch (SQLException e) {
             log.error("Database error during login: {}", e.toString());

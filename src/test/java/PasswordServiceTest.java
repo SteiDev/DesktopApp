@@ -3,15 +3,15 @@ import static org.junit.jupiter.api.Assertions.*;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
-import org.ssd.project.accounts.PasswordService;
+import org.ssd.project.accounts.BCryptPasswordService;
 
 class PasswordServiceTest {
 
-    private PasswordService passwordService;
+    private BCryptPasswordService passwordService;
 
     @BeforeEach
     void setUp() {
-        passwordService = new PasswordService();
+        passwordService = new BCryptPasswordService();
     }
 
     // ---------- hash ----------
