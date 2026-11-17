@@ -4,6 +4,8 @@ import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -39,9 +41,11 @@ class SQLiteUserDatabaseTest {
     /* ---------- constructor ---------- */
 
     @Test
-    @DisplayName("constructor throws IllegalStateException when the database cannot be created")
-    void constructor_invalidPath_throws() {
-        String invalid = tempDir.resolve("missing-dir").resolve("db.sqlite").toString();
+    @DisplayName(
+            "constructor throws IllegalStateException when the database directory cannot be created")
+    void constructor_invalidPath_throws() throws IOException {
+        Path blocker = Files.createFile(tempDir.resolve("not-a-dir"));
+        String invalid = blocker.resolve("db.sqlite").toString();
         assertThrows(IllegalStateException.class, () -> new SQLiteUserDatabase(invalid));
     }
 
@@ -114,11 +118,9 @@ class SQLiteUserDatabaseTest {
         assertTrue(second.id() > first.id());
     }
 
-    @Test
-    @DisplayName(
-            "saveUser fails with IllegalStateException on a non-constraint DB error (null email)")
+    @DisplayName("saveUser rejects a null email")
     void saveUser_nullEmail_throws() {
-        assertThrows(IllegalStateException.class, () -> db.saveUser(USERNAME, null, PASSWORD));
+        assertThrows(IllegalArgumentException.class, () -> db.saveUser(USERNAME, null, PASSWORD));
     }
 
     /* ---------- login ---------- */
@@ -272,13 +274,14 @@ class SQLiteUserDatabaseTest {
         User saved = db.saveUser(USERNAME, EMAIL, PASSWORD).orElseThrow();
 
         try (Connection conn = rawConnection();
-                Statement st = conn.createStatement()) {
-            st.executeUpdate("INSERT INTO stats (user_id) VALUES (" + saved.id() + ")");
-            try (ResultSet rs = st.executeQuery("SELECT quizzes_completed, accuracy FROM stats")) {
-                assertTrue(rs.next());
-                assertEquals(0, rs.getInt("quizzes_completed"));
-                assertEquals(0.0, rs.getDouble("accuracy"));
-            }
+                Statement st = conn.createStatement();
+                ResultSet rs =
+                        st.executeQuery(
+                                "SELECT quizzes_completed, accuracy FROM stats WHERE user_id = "
+                                        + saved.id())) {
+            assertTrue(rs.next());
+            assertEquals(0, rs.getInt("quizzes_completed"));
+            assertEquals(0.0, rs.getDouble("accuracy"));
         }
     }
 
@@ -298,9 +301,8 @@ class SQLiteUserDatabaseTest {
         try (Connection conn = rawConnection();
                 Statement st = conn.createStatement()) {
             st.executeUpdate(
-                    "INSERT INTO stats (user_id, quizzes_completed, accuracy) VALUES ("
-                            + saved.id()
-                            + ", 5, 0.8)");
+                    "UPDATE stats SET quizzes_completed = 5, accuracy = 0.8 WHERE user_id = "
+                            + saved.id());
 
             assertTrue(db.deleteUser(saved.id()));
 
