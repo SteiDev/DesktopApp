@@ -2,13 +2,13 @@ package org.ssd.project.accounts;
 
 import java.sql.*;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Properties;
+import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.sqlite.SQLiteConfig;
-import java.util.Set;
-import java.util.Map;
 
 public final class SQLiteUserDatabase implements IUserDatabase {
     private static final Logger log = LoggerFactory.getLogger(SQLiteUserDatabase.class);
@@ -193,9 +193,16 @@ public final class SQLiteUserDatabase implements IUserDatabase {
     private <T> boolean updateField(String table, String field, T value, long id) {
         validateColumn(table, field);
         String sql =
-                "UPDATE " + table + " SET " + field + " = ? WHERE " + KEY_COLUMNS.get(table) + " = ?";
+                "UPDATE "
+                        + table
+                        + " SET "
+                        + field
+                        + " = ? WHERE "
+                        + KEY_COLUMNS.get(table)
+                        + " = ?";
 
-        try (Connection conn = connect(); PreparedStatement ps = conn.prepareStatement(sql)) {
+        try (Connection conn = connect();
+                PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setObject(1, value);
             ps.setLong(2, id);
             boolean updated = ps.executeUpdate() > 0;
@@ -218,9 +225,11 @@ public final class SQLiteUserDatabase implements IUserDatabase {
      */
     private <T> Optional<T> getField(String table, String field, long id, Class<T> type) {
         validateColumn(table, field);
-        String sql = "SELECT " + field + " FROM " + table + " WHERE " + KEY_COLUMNS.get(table) + " = ?";
+        String sql =
+                "SELECT " + field + " FROM " + table + " WHERE " + KEY_COLUMNS.get(table) + " = ?";
 
-        try (Connection conn = connect(); PreparedStatement ps = conn.prepareStatement(sql)) {
+        try (Connection conn = connect();
+                PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setLong(1, id);
             try (ResultSet rs = ps.executeQuery()) {
                 if (!rs.next()) {
@@ -238,7 +247,38 @@ public final class SQLiteUserDatabase implements IUserDatabase {
     private static void validateColumn(String table, String field) {
         Set<String> columns = ALLOWED_COLUMNS.get(table);
         if (columns == null || !columns.contains(field)) {
+            log.error("Rejected column {}.{}", table, field);
             throw new IllegalArgumentException("Column not allowed: " + table + "." + field);
         }
+    }
+
+    @Override
+    public void setQuizzesCompleted(long id, int quizzesCompleted) {
+        updateField("stats", "quizzes_completed", quizzesCompleted, id);
+    }
+
+    @Override
+    public int getQuizzesCompleted(long id) {
+        return getField("stats", "quizzes_completed", id, Integer.class)
+                .orElseThrow(
+                        () -> {
+                            log.error("No quizzes_completed found for user id={}", id);
+                            return new IllegalStateException("No stats for user id=" + id);
+                        });
+    }
+
+    @Override
+    public void setAccuracy(long id, double accuracy) {
+        updateField("stats", "accuracy", accuracy, id);
+    }
+
+    @Override
+    public double getAccuracy(long id) {
+        return getField("stats", "accuracy", id, Double.class)
+                .orElseThrow(
+                        () -> {
+                            log.error("No accuracy found for user id={}", id);
+                            return new IllegalStateException("No stats for user id=" + id);
+                        });
     }
 }
