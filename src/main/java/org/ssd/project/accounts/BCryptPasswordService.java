@@ -4,9 +4,9 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 
 /** Hashes and verifies passwords using BCrypt. */
 public final class BCryptPasswordService implements IPasswordService {
-    private static final int PASSWORD_STREGTH = 12;
+    private static final int PASSWORD_STRENGTH = 12;
 
-    private final BCryptPasswordEncoder encoder = new BCryptPasswordEncoder(PASSWORD_STREGTH);
+    private final BCryptPasswordEncoder encoder = new BCryptPasswordEncoder(PASSWORD_STRENGTH);
 
     /**
      * Hashes a raw password with a random salt.
