@@ -13,7 +13,6 @@
 - **The database layer shouldn't hash or verify passwords.** Move that into an `AuthService` and let the repository only store and fetch rows. `IUserDatabase` currently mixes authentication, user CRUD and statistics; split it into `UserRepository`, `StatsRepository` and `AuthService`.
 - **`setQuizzesCompleted` and `setAccuracy` are lossy.** The caller reads, computes and writes absolute values, so two writes can overwrite each other. Store `quizzes_completed`, `correct_answers` and `total_answers`, expose one atomic `recordQuiz(id, correct, total)` using `UPDATE ... SET x = x + ?`, and derive accuracy.
 - **`updateField`/`getField` with whitelists is more machinery than needed.** With two stats columns, plain explicit SQL is simpler and SpotBugs won't flag dynamic SQL.
-- **No schema versioning.** `CREATE TABLE IF NOT EXISTS` can't evolve. Use `PRAGMA user_version` with a small migration list, or Flyway.
 - **Consider `PRAGMA journal_mode=WAL`** in the `SQLiteConfig` for better behavior with a GUI reading while writing.
 
 ## Validation and security
@@ -31,13 +30,11 @@
 
 ## Build, CI and repo hygiene
 
-- **`build/` is stale Gradle output** (Gradle reports and class files) in a Maven project. Delete it. Check `git ls-files` to make sure `.idea/workspace.xml` and `logs/app.log` aren't tracked, since `.idea/` is only partly ignored.
 - **Tests live in the default package.** Move them to `org.ssd.project.accounts` to match the classes and get package-private access.
 - **Wildcard `import java.sql.*;`** goes against the Google style you enforce. `importOrder` won't expand it.
 - **Add the Maven wrapper** (`mvn wrapper:wrapper`). Your `.gitignore` already anticipates it, and it removes the "install Maven" requirement.
 - **Add JaCoCo** for coverage, and consider `maven-enforcer-plugin` to require Java 25, which makes `buildenv.sh` less necessary.
 - **Add Dependabot or Renovate**, since many versions are pinned by hand.
-- **CI only triggers on `master`.** Check that matches your default branch, and run tests on Windows and macOS too if you plan to ship a desktop app.
 - **Logs go to relative `logs/`.** That depends on the working directory. For a packaged app, use a user data directory (and the same for `data/accounts.db`).
 - **Packaging.** There's no way to produce a distributable yet. Look at `jlink` plus `jpackage`, or the `javafx-maven-plugin` jlink goal.
 
@@ -53,7 +50,6 @@
 
 ## Suggested next steps
 
-1. Fix the quick bugs (logback package name, `User.toString()`, typos, error message, `returnTrue()`).
 2. Refactor into `AuthService` and `UserRepository` with injected dependencies.
 3. Build the FXML login screen with a background-thread login.
 4. Decide whether accounts stay local or move behind a backend shared with the web Frontend.
