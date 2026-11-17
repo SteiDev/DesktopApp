@@ -111,7 +111,7 @@ public final class SQLiteUserDatabase implements IUserDatabase {
             log.info("Stats table schema ready ({})", url);
         } catch (SQLException e) {
             log.error("Could not initialize stats table schema", e);
-            throw new IllegalStateException("Could not initialize users table schema", e);
+            throw new IllegalStateException("Could not initialize stats table schema", e);
         }
     }
 
