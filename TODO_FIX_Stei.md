@@ -30,7 +30,6 @@
 
 ## Build, CI and repo hygiene
 
-- **Tests live in the default package.** Move them to `org.ssd.project.accounts` to match the classes and get package-private access.
 - **Add the Maven wrapper** (`mvn wrapper:wrapper`). Your `.gitignore` already anticipates it, and it removes the "install Maven" requirement.
 - **Add JaCoCo** for coverage, and consider `maven-enforcer-plugin` to require Java 25, which makes `buildenv.sh` less necessary.
 - **Add Dependabot or Renovate**, since many versions are pinned by hand.

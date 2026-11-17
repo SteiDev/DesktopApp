@@ -1,3 +1,5 @@
+package org.ssd.project.accounts;
+
 import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -15,8 +17,6 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.sqlite.SQLiteConfig;
-import org.ssd.project.accounts.SQLiteUserDatabase;
-import org.ssd.project.accounts.User;
 
 /** Tests for the stats row lifecycle, the getters/setters and their input validation. */
 class SQLiteUserDatabaseStatsTest {

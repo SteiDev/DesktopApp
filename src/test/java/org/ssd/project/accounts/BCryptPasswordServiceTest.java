@@ -1,9 +1,10 @@
+package org.ssd.project.accounts;
+
 import static org.junit.jupiter.api.Assertions.*;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
-import org.ssd.project.accounts.BCryptPasswordService;
 
 class BCryptPasswordServiceTest {
 
