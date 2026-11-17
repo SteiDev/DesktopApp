@@ -2,11 +2,9 @@
 
 ## Bugs and small mistakes
 
-- **`User.toString()` prints the password hash.** Records generate `toString()` automatically, so any `log.info("{}", user)` leaks the hash. Override `toString()`, or don't carry the hash in `User` at all (login only needs it inside the DB class).
 - **Typo `PASSWORD_STREGTH`**, and the javadoc in `hash()` says `passwordHash` where it means `rawPassword`.
 - **`login()` is faster for unknown emails than for wrong passwords.** BCrypt only runs when the email exists, so an attacker can learn which emails are registered by timing. Run a dummy `verify` against a fixed hash when the user isn't found.
 - **`buildenv.sh` hardcodes `/usr/lib/jvm/openjdk25`.** That only works on some Linux distros and breaks on macOS or Debian-style names like `java-25-openjdk-amd64`. The `(venv)` prompt is copied from Python. `exit 1` in a sourced script also kills the user's shell.
-- **`Main.returnTrue()` exists only so a test can pass.** Remove it, along with the unused `Logger` imports.
 
 ## Architecture
 
