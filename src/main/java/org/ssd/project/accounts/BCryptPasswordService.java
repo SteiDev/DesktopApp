@@ -13,11 +13,11 @@ public final class BCryptPasswordService implements IPasswordService {
      *
      * @param rawPassword the plain-text password; must not be null or empty
      * @return the BCrypt hash, never null
-     * @throws IllegalArgumentException if {@code passwordHash} is null or empty
+     * @throws IllegalArgumentException if {@code rawPassword} is null or empty
      */
     public String hash(String rawPassword) {
         if (rawPassword == null || rawPassword.isEmpty()) {
-            throw new IllegalArgumentException("passwordHash must not be null or empty");
+            throw new IllegalArgumentException("rawPassword must not be null or empty");
         }
 
         return encoder.encode(rawPassword);
