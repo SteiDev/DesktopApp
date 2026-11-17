@@ -12,6 +12,8 @@ import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.sqlite.SQLiteConfig;
+import org.sqlite.SQLiteErrorCode;
+import org.sqlite.SQLiteException;
 
 public final class SQLiteUserDatabase implements IUserDatabase {
     private static final Logger log = LoggerFactory.getLogger(SQLiteUserDatabase.class);
@@ -118,35 +120,71 @@ public final class SQLiteUserDatabase implements IUserDatabase {
         return email == null ? null : email.trim().toLowerCase(Locale.ROOT);
     }
 
+    private static void requireNonBlank(String value, String name) {
+        if (value == null || value.isBlank()) {
+            log.warn("Rejected blank or null {}", name);
+            throw new IllegalArgumentException(name + " must not be null or blank");
+        }
+    }
+
     @Override
     public Optional<User> saveUser(String username, String email, String rawPassword) {
-        String sql = "INSERT INTO users (username, email, password_hash) VALUES (?, ?, ?)";
+        requireNonBlank(username, "username");
+        requireNonBlank(email, "email");
+
+        String userSql = "INSERT INTO users (username, email, password_hash) VALUES (?, ?, ?)";
+        String statsSql = "INSERT INTO stats (user_id) VALUES (?)";
         String normalizedEmail = normalizeEmail(email);
         String passwordHash = passwordService.hash(rawPassword);
 
-        try (Connection conn = connect();
-                PreparedStatement ps =
-                        conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
-            ps.setString(1, username);
-            ps.setString(2, normalizedEmail);
-            ps.setString(3, passwordHash);
-            ps.executeUpdate();
+        try (Connection conn = connect()) {
+            /* The user and their stats row are created together or not at all */
+            conn.setAutoCommit(false);
+            try {
+                long id;
+                try (PreparedStatement ps =
+                             conn.prepareStatement(userSql, Statement.RETURN_GENERATED_KEYS)) {
+                    ps.setString(1, username);
+                    ps.setString(2, normalizedEmail);
+                    ps.setString(3, passwordHash);
+                    ps.executeUpdate();
 
-            try (ResultSet keys = ps.getGeneratedKeys()) {
-                long id = keys.next() ? keys.getLong(1) : 0;
+                    try (ResultSet keys = ps.getGeneratedKeys()) {
+                        if (!keys.next()) {
+                            throw new SQLException("No generated id returned for new user");
+                        }
+                        id = keys.getLong(1);
+                    }
+                }
+
+                try (PreparedStatement ps = conn.prepareStatement(statsSql)) {
+                    ps.setLong(1, id);
+                    ps.executeUpdate();
+                }
+
+                conn.commit();
                 log.info("Saved new user id={}", id);
                 return Optional.of(new User(id, username, normalizedEmail, passwordHash));
+            } catch (SQLException e) {
+                log.error("SQL error when trying to save user: {}", e.toString());
+                conn.rollback();
+                throw e;
             }
         } catch (SQLException e) {
             /* The email must be unique */
-            String msg = e.getMessage() == null ? "" : e.getMessage();
-            if (msg.contains("UNIQUE constraint failed: users.email")) {
+            if (isUniqueViolation(e)) {
                 log.warn("Insert rejected by UNIQUE constraint on email");
                 return Optional.empty();
             }
             log.error("Database error while saving user: {}", e.toString());
             throw new IllegalStateException("Database error while saving user", e);
         }
+    }
+
+    /* users.email is the only UNIQUE column besides the primary key */
+    private static boolean isUniqueViolation(SQLException e) {
+        return e instanceof SQLiteException sqliteException
+                && sqliteException.getResultCode() == SQLiteErrorCode.SQLITE_CONSTRAINT_UNIQUE;
     }
 
     @Override
