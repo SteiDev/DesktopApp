@@ -1,3 +1,4 @@
+import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -10,13 +11,14 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.sqlite.SQLiteConfig;
 import org.ssd.project.accounts.SQLiteUserDatabase;
 import org.ssd.project.accounts.User;
 
-/** Tests for the stats row creation, getters/setters and the related input validation. */
+/** Tests for the stats row lifecycle, the getters/setters and their input validation. */
 class SQLiteUserDatabaseStatsTest {
 
     private static final String PASSWORD = "S3cret!pass";
@@ -41,8 +43,11 @@ class SQLiteUserDatabaseStatsTest {
         return DriverManager.getConnection("jdbc:sqlite:" + dbFile, config.toProperties());
     }
 
-    private User createUser(String name, String email) {
-        return db.saveUser(name, email, PASSWORD).orElseThrow();
+    private void executeRaw(String sql) throws SQLException {
+        try (Connection conn = rawConnection();
+                Statement st = conn.createStatement()) {
+            st.executeUpdate(sql);
+        }
     }
 
     private int count(String table) throws SQLException {
@@ -54,274 +59,344 @@ class SQLiteUserDatabaseStatsTest {
         }
     }
 
-    private void deleteStatsRow(long userId) throws SQLException {
-        try (Connection conn = rawConnection();
-                Statement st = conn.createStatement()) {
-            st.executeUpdate("DELETE FROM stats WHERE user_id = " + userId);
+    private User createUser(String name, String email) {
+        return db.saveUser(name, email, PASSWORD).orElseThrow();
+    }
+
+    private User createAlice() {
+        return createUser("alice", "alice@example.com");
+    }
+
+    /* ---------- stats row creation ---------- */
+
+    @Nested
+    @DisplayName("stats row creation")
+    class Creation {
+
+        @Test
+        @DisplayName("saveUser creates a stats row with 0 quizzes and 0.0 accuracy")
+        void createsRowWithDefaults() throws SQLException {
+            User user = createAlice();
+
+            assertAll(
+                    () -> assertEquals(1, count("stats")),
+                    () -> assertEquals(0, db.getQuizzesCompleted(user.id())),
+                    () -> assertEquals(0.0, db.getAccuracy(user.id()), DELTA));
         }
-    }
 
-    /* ---------- stats row creation in saveUser ---------- */
+        @Test
+        @DisplayName("every saved user gets their own stats row")
+        void eachUserGetsRow() throws SQLException {
+            createAlice();
+            createUser("bob", "bob@example.com");
 
-    @Test
-    @DisplayName("saveUser creates a stats row with 0 quizzes and 0.0 accuracy")
-    void saveUser_createsStatsRowWithDefaults() throws SQLException {
-        User user = createUser("alice", "alice@example.com");
+            assertAll(() -> assertEquals(2, count("users")), () -> assertEquals(2, count("stats")));
+        }
 
-        assertEquals(1, count("stats"));
-        assertEquals(0, db.getQuizzesCompleted(user.id()));
-        assertEquals(0.0, db.getAccuracy(user.id()), DELTA);
-    }
+        @Test
+        @DisplayName("a rejected duplicate email leaves no extra user or stats row")
+        void duplicateEmail_createsNothing() throws SQLException {
+            createAlice();
 
-    @Test
-    @DisplayName("every saved user gets their own stats row")
-    void saveUser_eachUserGetsStatsRow() throws SQLException {
-        createUser("alice", "alice@example.com");
-        createUser("bob", "bob@example.com");
+            assertTrue(db.saveUser("bob", "alice@example.com", PASSWORD).isEmpty());
 
-        assertEquals(2, count("users"));
-        assertEquals(2, count("stats"));
-    }
+            assertAll(() -> assertEquals(1, count("users")), () -> assertEquals(1, count("stats")));
+        }
 
-    @Test
-    @DisplayName("a rejected duplicate email leaves no extra user or stats row behind")
-    void saveUser_duplicateEmail_createsNothing() throws SQLException {
-        createUser("alice", "alice@example.com");
+        @Test
+        @DisplayName("if the stats insert fails, the user insert is rolled back too")
+        void statsInsertFails_rollsBackUser() throws SQLException {
+            executeRaw(
+                    "CREATE TRIGGER fail_stats_insert BEFORE INSERT ON stats "
+                            + "BEGIN SELECT RAISE(ABORT, 'simulated stats failure'); END");
 
-        assertTrue(db.saveUser("bob", "alice@example.com", PASSWORD).isEmpty());
+            assertThrows(
+                    IllegalStateException.class,
+                    () -> db.saveUser("alice", "alice@example.com", PASSWORD));
 
-        assertEquals(1, count("users"));
-        assertEquals(1, count("stats"));
-    }
-
-    /* ---------- saveUser validation ---------- */
-
-    @Test
-    @DisplayName("saveUser rejects a null or blank username")
-    void saveUser_invalidUsername_throws() throws SQLException {
-        assertThrows(
-                IllegalArgumentException.class,
-                () -> db.saveUser(null, "alice@example.com", PASSWORD));
-        assertThrows(
-                IllegalArgumentException.class,
-                () -> db.saveUser("   ", "alice@example.com", PASSWORD));
-
-        assertEquals(0, count("users"));
-    }
-
-    @Test
-    @DisplayName("saveUser rejects a null or blank email")
-    void saveUser_invalidEmail_throws() throws SQLException {
-        assertThrows(IllegalArgumentException.class, () -> db.saveUser("alice", null, PASSWORD));
-        assertThrows(IllegalArgumentException.class, () -> db.saveUser("alice", "  ", PASSWORD));
-
-        assertEquals(0, count("users"));
+            assertAll(() -> assertEquals(0, count("users")), () -> assertEquals(0, count("stats")));
+        }
     }
 
     /* ---------- quizzes completed ---------- */
 
-    @Test
-    @DisplayName("setQuizzesCompleted then getQuizzesCompleted returns the stored value")
-    void quizzesCompleted_roundTrip() {
-        User user = createUser("alice", "alice@example.com");
+    @Nested
+    @DisplayName("quizzes completed")
+    class QuizzesCompleted {
 
-        db.setQuizzesCompleted(user.id(), 7);
+        @Test
+        @DisplayName("set then get returns the stored value")
+        void roundTrip() {
+            User user = createAlice();
 
-        assertEquals(7, db.getQuizzesCompleted(user.id()));
-    }
+            db.setQuizzesCompleted(user.id(), 7);
 
-    @Test
-    @DisplayName("setQuizzesCompleted overwrites the previous value")
-    void quizzesCompleted_overwrite() {
-        User user = createUser("alice", "alice@example.com");
+            assertEquals(7, db.getQuizzesCompleted(user.id()));
+        }
 
-        db.setQuizzesCompleted(user.id(), 3);
-        db.setQuizzesCompleted(user.id(), 10);
+        @Test
+        @DisplayName("set overwrites the previous value")
+        void overwrite() {
+            User user = createAlice();
 
-        assertEquals(10, db.getQuizzesCompleted(user.id()));
-    }
+            db.setQuizzesCompleted(user.id(), 3);
+            db.setQuizzesCompleted(user.id(), 10);
 
-    @Test
-    @DisplayName("quizzes completed supports zero and large values")
-    void quizzesCompleted_boundaries() {
-        User user = createUser("alice", "alice@example.com");
+            assertEquals(10, db.getQuizzesCompleted(user.id()));
+        }
 
-        db.setQuizzesCompleted(user.id(), 0);
-        assertEquals(0, db.getQuizzesCompleted(user.id()));
+        @Test
+        @DisplayName("supports zero and Integer.MAX_VALUE")
+        void boundaries() {
+            User user = createAlice();
 
-        db.setQuizzesCompleted(user.id(), Integer.MAX_VALUE);
-        assertEquals(Integer.MAX_VALUE, db.getQuizzesCompleted(user.id()));
-    }
+            db.setQuizzesCompleted(user.id(), Integer.MAX_VALUE);
+            assertEquals(Integer.MAX_VALUE, db.getQuizzesCompleted(user.id()));
 
-    @Test
-    @DisplayName("setQuizzesCompleted rejects a negative value and keeps the old one")
-    void quizzesCompleted_negative_throws() {
-        User user = createUser("alice", "alice@example.com");
-        db.setQuizzesCompleted(user.id(), 4);
+            db.setQuizzesCompleted(user.id(), 0);
+            assertEquals(0, db.getQuizzesCompleted(user.id()));
+        }
 
-        assertThrows(IllegalArgumentException.class, () -> db.setQuizzesCompleted(user.id(), -1));
+        @Test
+        @DisplayName("rejects a negative value and keeps the old one")
+        void negative_throws() {
+            User user = createAlice();
+            db.setQuizzesCompleted(user.id(), 4);
 
-        assertEquals(4, db.getQuizzesCompleted(user.id()));
+            assertThrows(
+                    IllegalArgumentException.class, () -> db.setQuizzesCompleted(user.id(), -1));
+
+            assertEquals(4, db.getQuizzesCompleted(user.id()));
+        }
     }
 
     /* ---------- accuracy ---------- */
 
-    @Test
-    @DisplayName("setAccuracy then getAccuracy returns the stored value")
-    void accuracy_roundTrip() {
-        User user = createUser("alice", "alice@example.com");
+    @Nested
+    @DisplayName("accuracy")
+    class Accuracy {
 
-        db.setAccuracy(user.id(), 0.85);
+        @Test
+        @DisplayName("set then get returns the stored value")
+        void roundTrip() {
+            User user = createAlice();
 
-        assertEquals(0.85, db.getAccuracy(user.id()), DELTA);
-    }
+            db.setAccuracy(user.id(), 0.85);
 
-    @Test
-    @DisplayName("setAccuracy overwrites the previous value")
-    void accuracy_overwrite() {
-        User user = createUser("alice", "alice@example.com");
+            assertEquals(0.85, db.getAccuracy(user.id()), DELTA);
+        }
 
-        db.setAccuracy(user.id(), 0.25);
-        db.setAccuracy(user.id(), 0.9);
+        @Test
+        @DisplayName("set overwrites the previous value")
+        void overwrite() {
+            User user = createAlice();
 
-        assertEquals(0.9, db.getAccuracy(user.id()), DELTA);
-    }
+            db.setAccuracy(user.id(), 0.25);
+            db.setAccuracy(user.id(), 0.9);
 
-    @Test
-    @DisplayName("accuracy supports the boundaries 0.0 and 1.0")
-    void accuracy_boundaries() {
-        User user = createUser("alice", "alice@example.com");
+            assertEquals(0.9, db.getAccuracy(user.id()), DELTA);
+        }
 
-        db.setAccuracy(user.id(), 1.0);
-        assertEquals(1.0, db.getAccuracy(user.id()), DELTA);
+        @Test
+        @DisplayName("supports the boundaries 0.0 and 1.0")
+        void boundaries() {
+            User user = createAlice();
 
-        db.setAccuracy(user.id(), 0.0);
-        assertEquals(0.0, db.getAccuracy(user.id()), DELTA);
-    }
+            db.setAccuracy(user.id(), 1.0);
+            assertEquals(1.0, db.getAccuracy(user.id()), DELTA);
 
-    @Test
-    @DisplayName("accuracy keeps fractional precision")
-    void accuracy_keepsPrecision() {
-        User user = createUser("alice", "alice@example.com");
+            db.setAccuracy(user.id(), 0.0);
+            assertEquals(0.0, db.getAccuracy(user.id()), DELTA);
+        }
 
-        db.setAccuracy(user.id(), 2.0 / 3.0);
+        @Test
+        @DisplayName("keeps fractional precision")
+        void keepsPrecision() {
+            User user = createAlice();
 
-        assertEquals(2.0 / 3.0, db.getAccuracy(user.id()), DELTA);
-    }
+            db.setAccuracy(user.id(), 2.0 / 3.0);
 
-    @Test
-    @DisplayName("setAccuracy rejects values outside 0.0-1.0 and NaN, keeping the old value")
-    void accuracy_invalid_throws() {
-        User user = createUser("alice", "alice@example.com");
-        db.setAccuracy(user.id(), 0.5);
+            assertEquals(2.0 / 3.0, db.getAccuracy(user.id()), DELTA);
+        }
 
-        assertThrows(IllegalArgumentException.class, () -> db.setAccuracy(user.id(), -0.1));
-        assertThrows(IllegalArgumentException.class, () -> db.setAccuracy(user.id(), 1.1));
-        assertThrows(IllegalArgumentException.class, () -> db.setAccuracy(user.id(), Double.NaN));
+        @Test
+        @DisplayName("rejects values outside 0.0-1.0, NaN and infinity, keeping the old value")
+        void invalid_throws() {
+            User user = createAlice();
+            db.setAccuracy(user.id(), 0.5);
 
-        assertEquals(0.5, db.getAccuracy(user.id()), DELTA);
+            assertAll(
+                    () ->
+                            assertThrows(
+                                    IllegalArgumentException.class,
+                                    () -> db.setAccuracy(user.id(), -0.1)),
+                    () ->
+                            assertThrows(
+                                    IllegalArgumentException.class,
+                                    () -> db.setAccuracy(user.id(), 1.1)),
+                    () ->
+                            assertThrows(
+                                    IllegalArgumentException.class,
+                                    () -> db.setAccuracy(user.id(), Double.NaN)),
+                    () ->
+                            assertThrows(
+                                    IllegalArgumentException.class,
+                                    () -> db.setAccuracy(user.id(), Double.POSITIVE_INFINITY)),
+                    () ->
+                            assertThrows(
+                                    IllegalArgumentException.class,
+                                    () -> db.setAccuracy(user.id(), Double.NEGATIVE_INFINITY)));
+
+            assertEquals(0.5, db.getAccuracy(user.id()), DELTA);
+        }
     }
 
     /* ---------- independence ---------- */
 
-    @Test
-    @DisplayName("updating accuracy does not change quizzes completed, and vice versa")
-    void fields_areIndependent() {
-        User user = createUser("alice", "alice@example.com");
+    @Nested
+    @DisplayName("independence")
+    class Independence {
 
-        db.setQuizzesCompleted(user.id(), 4);
-        db.setAccuracy(user.id(), 0.5);
-        db.setAccuracy(user.id(), 0.75);
+        @Test
+        @DisplayName("updating one field does not change the other")
+        void fieldsAreIndependent() {
+            User user = createAlice();
 
-        assertEquals(4, db.getQuizzesCompleted(user.id()));
+            db.setQuizzesCompleted(user.id(), 4);
+            db.setAccuracy(user.id(), 0.75);
+            assertEquals(4, db.getQuizzesCompleted(user.id()));
 
-        db.setQuizzesCompleted(user.id(), 9);
+            db.setQuizzesCompleted(user.id(), 9);
+            assertEquals(0.75, db.getAccuracy(user.id()), DELTA);
+        }
 
-        assertEquals(0.75, db.getAccuracy(user.id()), DELTA);
-    }
+        @Test
+        @DisplayName("stats belong to one user and do not leak to others")
+        void statsArePerUser() {
+            User alice = createAlice();
+            User bob = createUser("bob", "bob@example.com");
 
-    @Test
-    @DisplayName("stats belong to one user and do not leak to others")
-    void stats_arePerUser() {
-        User alice = createUser("alice", "alice@example.com");
-        User bob = createUser("bob", "bob@example.com");
+            db.setQuizzesCompleted(alice.id(), 5);
+            db.setAccuracy(alice.id(), 0.9);
 
-        db.setQuizzesCompleted(alice.id(), 5);
-        db.setAccuracy(alice.id(), 0.9);
-
-        assertEquals(0, db.getQuizzesCompleted(bob.id()));
-        assertEquals(0.0, db.getAccuracy(bob.id()), DELTA);
-        assertEquals(5, db.getQuizzesCompleted(alice.id()));
-        assertEquals(0.9, db.getAccuracy(alice.id()), DELTA);
+            assertAll(
+                    () -> assertEquals(0, db.getQuizzesCompleted(bob.id())),
+                    () -> assertEquals(0.0, db.getAccuracy(bob.id()), DELTA),
+                    () -> assertEquals(5, db.getQuizzesCompleted(alice.id())),
+                    () -> assertEquals(0.9, db.getAccuracy(alice.id()), DELTA));
+        }
     }
 
     /* ---------- missing rows ---------- */
 
-    @Test
-    @DisplayName("getters throw for a user id that does not exist")
-    void getters_unknownUser_throw() {
-        assertThrows(IllegalStateException.class, () -> db.getQuizzesCompleted(9999L));
-        assertThrows(IllegalStateException.class, () -> db.getAccuracy(9999L));
+    @Nested
+    @DisplayName("missing stats")
+    class MissingRows {
+
+        @Test
+        @DisplayName("getters and setters throw for a user id that does not exist")
+        void unknownUser_throws() {
+            assertAll(
+                    () ->
+                            assertThrows(
+                                    IllegalStateException.class,
+                                    () -> db.getQuizzesCompleted(9999L)),
+                    () -> assertThrows(IllegalStateException.class, () -> db.getAccuracy(9999L)),
+                    () ->
+                            assertThrows(
+                                    IllegalStateException.class,
+                                    () -> db.setQuizzesCompleted(9999L, 3)),
+                    () ->
+                            assertThrows(
+                                    IllegalStateException.class, () -> db.setAccuracy(9999L, 0.5)));
+        }
+
+        @Test
+        @DisplayName("getters and setters throw if the stats row is gone for an existing user")
+        void statsRowMissing_throws() throws SQLException {
+            User user = createAlice();
+            /* Simulates a corrupted or legacy database */
+            executeRaw("DELETE FROM stats WHERE user_id = " + user.id());
+
+            assertAll(
+                    () ->
+                            assertThrows(
+                                    IllegalStateException.class,
+                                    () -> db.getQuizzesCompleted(user.id())),
+                    () ->
+                            assertThrows(
+                                    IllegalStateException.class, () -> db.getAccuracy(user.id())),
+                    () ->
+                            assertThrows(
+                                    IllegalStateException.class,
+                                    () -> db.setQuizzesCompleted(user.id(), 3)),
+                    () ->
+                            assertThrows(
+                                    IllegalStateException.class,
+                                    () -> db.setAccuracy(user.id(), 0.5)));
+            assertEquals(0, count("stats"));
+        }
     }
 
-    @Test
-    @DisplayName("setters throw for a user id that does not exist")
-    void setters_unknownUser_throw() {
-        assertThrows(IllegalStateException.class, () -> db.setQuizzesCompleted(9999L, 3));
-        assertThrows(IllegalStateException.class, () -> db.setAccuracy(9999L, 0.5));
-    }
+    /* ---------- persistence, deletion and schema ---------- */
 
-    @Test
-    @DisplayName("getters and setters throw if the stats row is missing for an existing user")
-    void statsRowMissing_throws() throws SQLException {
-        User user = createUser("alice", "alice@example.com");
-        deleteStatsRow(user.id());
+    @Nested
+    @DisplayName("lifecycle and schema")
+    class Lifecycle {
 
-        assertThrows(IllegalStateException.class, () -> db.getQuizzesCompleted(user.id()));
-        assertThrows(IllegalStateException.class, () -> db.getAccuracy(user.id()));
-        assertThrows(IllegalStateException.class, () -> db.setQuizzesCompleted(user.id(), 3));
-        assertThrows(IllegalStateException.class, () -> db.setAccuracy(user.id(), 0.5));
-        assertEquals(0, count("stats"));
-    }
+        @Test
+        @DisplayName("stats persist across repository instances on the same file")
+        void persistAcrossInstances() {
+            User user = createAlice();
+            db.setQuizzesCompleted(user.id(), 12);
+            db.setAccuracy(user.id(), 0.6);
 
-    /* ---------- persistence and deletion ---------- */
+            SQLiteUserDatabase reopened = new SQLiteUserDatabase(dbFile.toString());
 
-    @Test
-    @DisplayName("stats persist across repository instances on the same file")
-    void stats_persistAcrossInstances() {
-        User user = createUser("alice", "alice@example.com");
-        db.setQuizzesCompleted(user.id(), 12);
-        db.setAccuracy(user.id(), 0.6);
+            assertAll(
+                    () -> assertEquals(12, reopened.getQuizzesCompleted(user.id())),
+                    () -> assertEquals(0.6, reopened.getAccuracy(user.id()), DELTA));
+        }
 
-        SQLiteUserDatabase reopened = new SQLiteUserDatabase(dbFile.toString());
+        @Test
+        @DisplayName("deleting a user cascades to their stats")
+        void deleteUser_removesStats() throws SQLException {
+            User user = createAlice();
+            db.setQuizzesCompleted(user.id(), 5);
 
-        assertEquals(12, reopened.getQuizzesCompleted(user.id()));
-        assertEquals(0.6, reopened.getAccuracy(user.id()), DELTA);
-    }
+            assertTrue(db.deleteUser(user.id()));
 
-    @Test
-    @DisplayName("deleting a user removes their stats, so the getters throw afterwards")
-    void deleteUser_removesStats() throws SQLException {
-        User user = createUser("alice", "alice@example.com");
-        db.setQuizzesCompleted(user.id(), 5);
+            assertAll(
+                    () -> assertEquals(0, count("stats")),
+                    () ->
+                            assertThrows(
+                                    IllegalStateException.class,
+                                    () -> db.getQuizzesCompleted(user.id())),
+                    () ->
+                            assertThrows(
+                                    IllegalStateException.class, () -> db.getAccuracy(user.id())));
+        }
 
-        assertTrue(db.deleteUser(user.id()));
+        @Test
+        @DisplayName("deleting one user keeps the stats of the others")
+        void deleteUser_keepsOtherUsersStats() throws SQLException {
+            User alice = createAlice();
+            User bob = createUser("bob", "bob@example.com");
+            db.setQuizzesCompleted(bob.id(), 8);
 
-        assertEquals(0, count("stats"));
-        assertThrows(IllegalStateException.class, () -> db.getQuizzesCompleted(user.id()));
-        assertThrows(IllegalStateException.class, () -> db.getAccuracy(user.id()));
-    }
+            db.deleteUser(alice.id());
 
-    @Test
-    @DisplayName("deleting one user keeps the stats of the others")
-    void deleteUser_keepsOtherUsersStats() throws SQLException {
-        User alice = createUser("alice", "alice@example.com");
-        User bob = createUser("bob", "bob@example.com");
-        db.setQuizzesCompleted(bob.id(), 8);
+            assertAll(
+                    () -> assertEquals(8, db.getQuizzesCompleted(bob.id())),
+                    () -> assertEquals(1, count("stats")));
+        }
 
-        db.deleteUser(alice.id());
-
-        assertEquals(8, db.getQuizzesCompleted(bob.id()));
-        assertEquals(1, count("stats"));
+        @Test
+        @DisplayName("the schema rejects a stats row for an unknown user (foreign key)")
+        void foreignKey_rejectsUnknownUser() {
+            assertThrows(
+                    SQLException.class,
+                    () -> executeRaw("INSERT INTO stats (user_id) VALUES (9999)"));
+        }
     }
 }
