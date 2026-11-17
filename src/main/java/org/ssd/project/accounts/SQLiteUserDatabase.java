@@ -143,7 +143,7 @@ public final class SQLiteUserDatabase implements IUserDatabase {
             try {
                 long id;
                 try (PreparedStatement ps =
-                             conn.prepareStatement(userSql, Statement.RETURN_GENERATED_KEYS)) {
+                        conn.prepareStatement(userSql, Statement.RETURN_GENERATED_KEYS)) {
                     ps.setString(1, username);
                     ps.setString(2, normalizedEmail);
                     ps.setString(3, passwordHash);
