@@ -309,9 +309,21 @@ public final class SQLiteUserDatabase implements IUserDatabase {
         }
     }
 
+    /* Updates a stats field and fails loudly if the user has no stats row */
+    private <T> void updateStatsField(String field, T value, long id) {
+        if (!updateField("stats", field, value, id)) {
+            log.error("Could not update stats.{}: no stats for user id={}", field, id);
+            throw new IllegalStateException("No stats for user id=" + id);
+        }
+    }
+
     @Override
     public void setQuizzesCompleted(long id, int quizzesCompleted) {
-        updateField("stats", "quizzes_completed", quizzesCompleted, id);
+        if (quizzesCompleted < 0) {
+            log.warn("Rejected negative quizzesCompleted={} for user id={}", quizzesCompleted, id);
+            throw new IllegalArgumentException("quizzesCompleted must not be negative");
+        }
+        updateStatsField("quizzes_completed", quizzesCompleted, id);
     }
 
     @Override
@@ -326,7 +338,11 @@ public final class SQLiteUserDatabase implements IUserDatabase {
 
     @Override
     public void setAccuracy(long id, double accuracy) {
-        updateField("stats", "accuracy", accuracy, id);
+        if (Double.isNaN(accuracy) || accuracy < 0.0 || accuracy > 1.0) {
+            log.warn("Rejected accuracy={} for user id={}", accuracy, id);
+            throw new IllegalArgumentException("accuracy must be between 0.0 and 1.0");
+        }
+        updateStatsField("accuracy", accuracy, id);
     }
 
     @Override
