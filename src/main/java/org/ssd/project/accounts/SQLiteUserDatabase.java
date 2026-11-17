@@ -1,5 +1,8 @@
 package org.ssd.project.accounts;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.sql.*;
 import java.util.Locale;
 import java.util.Map;
@@ -32,6 +35,8 @@ public final class SQLiteUserDatabase implements IUserDatabase {
     }
 
     public SQLiteUserDatabase(String dbPath) {
+        createParentDirectories(dbPath);
+
         this.url = "jdbc:sqlite:" + dbPath;
 
         SQLiteConfig config = new SQLiteConfig();
@@ -42,6 +47,20 @@ public final class SQLiteUserDatabase implements IUserDatabase {
         log.debug("Initializing SQLite repository at {}", url);
 
         initSchemas();
+    }
+
+    /* SQLite creates the file but not the folders leading to it */
+    private static void createParentDirectories(String dbPath) {
+        Path parent = Path.of(dbPath).toAbsolutePath().getParent();
+        if (parent == null) {
+            return;
+        }
+        try {
+            Files.createDirectories(parent);
+        } catch (IOException e) {
+            log.error("Could not create database directory {}", parent, e);
+            throw new IllegalStateException("Could not create database directory " + parent, e);
+        }
     }
 
     /* All schemes should be initialized here */
