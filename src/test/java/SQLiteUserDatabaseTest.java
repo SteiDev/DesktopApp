@@ -5,11 +5,17 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.nio.file.Path;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.sqlite.SQLiteConfig;
 import org.ssd.project.accounts.SQLiteUserDatabase;
 import org.ssd.project.accounts.User;
 
@@ -250,5 +256,58 @@ class SQLiteUserDatabaseTest {
         db.deleteUser(saved.id());
 
         assertTrue(db.saveUser(USERNAME, EMAIL, PASSWORD).isPresent());
+    }
+
+    /* ---------- stats table ---------- */
+
+    private Connection rawConnection() throws SQLException {
+        SQLiteConfig config = new SQLiteConfig();
+        config.enforceForeignKeys(true);
+        return DriverManager.getConnection(
+                "jdbc:sqlite:" + tempDir.resolve("test-accounts.db"), config.toProperties());
+    }
+
+    @Test
+    void statsTable_defaultsToZeroValues() throws SQLException {
+        User saved = db.saveUser(USERNAME, EMAIL, PASSWORD).orElseThrow();
+
+        try (Connection conn = rawConnection();
+                Statement st = conn.createStatement()) {
+            st.executeUpdate("INSERT INTO stats (user_id) VALUES (" + saved.id() + ")");
+            try (ResultSet rs = st.executeQuery("SELECT quizzes_completed, accuracy FROM stats")) {
+                assertTrue(rs.next());
+                assertEquals(0, rs.getInt("quizzes_completed"));
+                assertEquals(0.0, rs.getDouble("accuracy"));
+            }
+        }
+    }
+
+    @Test
+    void statsTable_rejectsUnknownUserId() throws SQLException {
+        try (Connection conn = rawConnection();
+                Statement st = conn.createStatement()) {
+            assertThrows(
+                    SQLException.class,
+                    () -> st.executeUpdate("INSERT INTO stats (user_id) VALUES (9999)"));
+        }
+    }
+
+    @Test
+    void deleteUser_alsoRemovesTheirStats() throws SQLException {
+        User saved = db.saveUser(USERNAME, EMAIL, PASSWORD).orElseThrow();
+        try (Connection conn = rawConnection();
+                Statement st = conn.createStatement()) {
+            st.executeUpdate(
+                    "INSERT INTO stats (user_id, quizzes_completed, accuracy) VALUES ("
+                            + saved.id()
+                            + ", 5, 0.8)");
+
+            assertTrue(db.deleteUser(saved.id()));
+
+            try (ResultSet rs = st.executeQuery("SELECT COUNT(*) FROM stats")) {
+                assertTrue(rs.next());
+                assertEquals(0, rs.getInt(1));
+            }
+        }
     }
 }

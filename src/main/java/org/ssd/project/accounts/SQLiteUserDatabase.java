@@ -36,6 +36,7 @@ public final class SQLiteUserDatabase implements IUserDatabase {
     /* All schemes should be initialized here */
     private void initSchemas() {
         createUsersTable();
+        createStatsTable();
     }
 
     private Connection connect() throws SQLException {
@@ -58,6 +59,26 @@ public final class SQLiteUserDatabase implements IUserDatabase {
             log.info("Users table schema ready ({})", url);
         } catch (SQLException e) {
             log.error("Could not initialize users table schema", e);
+            throw new IllegalStateException("Could not initialize users table schema", e);
+        }
+    }
+
+    private void createStatsTable() {
+        String sql =
+                """
+                        CREATE TABLE IF NOT EXISTS stats (
+                        user_id INTEGER PRIMARY KEY,
+                        quizzes_completed INTEGER NOT NULL DEFAULT 0,
+                        accuracy REAL NOT NULL DEFAULT 0.0,
+                        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+                        )
+                        """;
+        try (Connection conn = connect();
+                Statement st = conn.createStatement()) {
+            st.execute(sql);
+            log.info("Stats table schema ready ({})", url);
+        } catch (SQLException e) {
+            log.error("Could not initialize stats table schema", e);
             throw new IllegalStateException("Could not initialize users table schema", e);
         }
     }
