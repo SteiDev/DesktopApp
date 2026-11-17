@@ -209,4 +209,46 @@ class SQLiteUserDatabaseTest {
         assertTrue(reopened.login(EMAIL, PASSWORD).isPresent());
         assertTrue(reopened.saveUser("other", EMAIL, PASSWORD).isEmpty());
     }
+
+    /* ---------- deleteUser ---------- */
+
+    @Test
+    void deleteUser_withExistingId_returnsTrueAndRemovesUser() {
+        User saved = db.saveUser(USERNAME, EMAIL, PASSWORD).orElseThrow();
+
+        assertTrue(db.deleteUser(saved.id()));
+        assertTrue(db.login(EMAIL, PASSWORD).isEmpty());
+    }
+
+    @Test
+    void deleteUser_withUnknownId_returnsFalse() {
+        assertFalse(db.deleteUser(9999L));
+    }
+
+    @Test
+    void deleteUser_calledTwice_secondCallReturnsFalse() {
+        User saved = db.saveUser(USERNAME, EMAIL, PASSWORD).orElseThrow();
+
+        assertTrue(db.deleteUser(saved.id()));
+        assertFalse(db.deleteUser(saved.id()));
+    }
+
+    @Test
+    void deleteUser_onlyRemovesTheTargetUser() {
+        User a = db.saveUser("a", "a@example.com", PASSWORD).orElseThrow();
+        db.saveUser("b", "b@example.com", PASSWORD);
+
+        db.deleteUser(a.id());
+
+        assertTrue(db.login("a@example.com", PASSWORD).isEmpty());
+        assertTrue(db.login("b@example.com", PASSWORD).isPresent());
+    }
+
+    @Test
+    void deleteUser_freesEmailForReRegistration() {
+        User saved = db.saveUser(USERNAME, EMAIL, PASSWORD).orElseThrow();
+        db.deleteUser(saved.id());
+
+        assertTrue(db.saveUser(USERNAME, EMAIL, PASSWORD).isPresent());
+    }
 }

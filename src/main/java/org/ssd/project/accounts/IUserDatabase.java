@@ -6,4 +6,6 @@ public interface IUserDatabase {
     Optional<User> login(String email, String rawPassword);
 
     Optional<User> saveUser(String username, String email, String rawPassword);
+
+    boolean deleteUser(long id);
 }

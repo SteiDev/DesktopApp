@@ -67,6 +67,7 @@ public final class SQLiteUserDatabase implements IUserDatabase {
         return email == null ? null : email.trim().toLowerCase(Locale.ROOT);
     }
 
+    @Override
     public Optional<User> saveUser(String username, String email, String rawPassword) {
         String sql = "INSERT INTO users (username, email, password_hash) VALUES (?, ?, ?)";
         String normalizedEmail = normalizeEmail(email);
@@ -97,6 +98,7 @@ public final class SQLiteUserDatabase implements IUserDatabase {
         }
     }
 
+    @Override
     public Optional<User> login(String email, String rawPassword) {
         String sql = "SELECT id, username, email, password_hash FROM users WHERE email = ?";
 
@@ -124,6 +126,26 @@ public final class SQLiteUserDatabase implements IUserDatabase {
         } catch (SQLException e) {
             log.error("Database error during login: {}", e.toString());
             throw new IllegalStateException("Database error during login", e);
+        }
+    }
+
+    @Override
+    public boolean deleteUser(long id) {
+        String sql = "DELETE FROM users WHERE id = ?";
+
+        try (Connection conn = connect();
+                PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setLong(1, id);
+            boolean deleted = ps.executeUpdate() > 0;
+            if (deleted) {
+                log.info("Deleted user id={}", id);
+            } else {
+                log.warn("Delete failed: no user with id={}", id);
+            }
+            return deleted;
+        } catch (SQLException e) {
+            log.error("Database error while deleting user id={}: {}", id, e.toString());
+            throw new IllegalStateException("Database error while deleting user", e);
         }
     }
 }
