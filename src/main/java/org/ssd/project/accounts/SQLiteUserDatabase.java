@@ -7,6 +7,8 @@ import java.util.Properties;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.sqlite.SQLiteConfig;
+import java.util.Set;
+import java.util.Map;
 
 public final class SQLiteUserDatabase implements IUserDatabase {
     private static final Logger log = LoggerFactory.getLogger(SQLiteUserDatabase.class);
@@ -14,6 +16,15 @@ public final class SQLiteUserDatabase implements IUserDatabase {
 
     private final String url;
     private final Properties configProperties;
+
+    /* Fields that can be get/set from updateField and getField */
+    private static final Map<String, Set<String>> ALLOWED_COLUMNS =
+            Map.of(
+                    "users", Set.of("username"),
+                    "stats", Set.of("quizzes_completed", "accuracy"));
+    /* Table -> id for the table mapping */
+    private static final Map<String, String> KEY_COLUMNS =
+            Map.of("users", "id", "stats", "user_id");
 
     /* Default constructor */
     public SQLiteUserDatabase() {
@@ -167,6 +178,67 @@ public final class SQLiteUserDatabase implements IUserDatabase {
         } catch (SQLException e) {
             log.error("Database error while deleting user id={}: {}", id, e.toString());
             throw new IllegalStateException("Database error while deleting user", e);
+        }
+    }
+
+    /**
+     * Sets a single field of one row to the given value.
+     *
+     * @param table the table name (must be whitelisted)
+     * @param field the column name (must be whitelisted for that table)
+     * @param value the new value
+     * @param id the id of the user the row belongs to
+     * @return {@code true} if a row was updated; {@code false} if no row matched
+     */
+    private <T> boolean updateField(String table, String field, T value, long id) {
+        validateColumn(table, field);
+        String sql =
+                "UPDATE " + table + " SET " + field + " = ? WHERE " + KEY_COLUMNS.get(table) + " = ?";
+
+        try (Connection conn = connect(); PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setObject(1, value);
+            ps.setLong(2, id);
+            boolean updated = ps.executeUpdate() > 0;
+            log.debug("Updated {}.{} for id={} (updated={})", table, field, id, updated);
+            return updated;
+        } catch (SQLException e) {
+            log.error("Database error while updating {}.{}: {}", table, field, e.toString());
+            throw new IllegalStateException("Database error while updating " + table, e);
+        }
+    }
+
+    /**
+     * Reads a single field of one row.
+     *
+     * @param table the table name (must be whitelisted)
+     * @param field the column name (must be whitelisted for that table)
+     * @param id the id of the user the row belongs to
+     * @param type the expected Java type of the value, e.g. {@code Integer.class}
+     * @return the value, or empty if no row matched or the value is NULL
+     */
+    private <T> Optional<T> getField(String table, String field, long id, Class<T> type) {
+        validateColumn(table, field);
+        String sql = "SELECT " + field + " FROM " + table + " WHERE " + KEY_COLUMNS.get(table) + " = ?";
+
+        try (Connection conn = connect(); PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setLong(1, id);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (!rs.next()) {
+                    return Optional.empty();
+                }
+                return Optional.ofNullable(rs.getObject(1, type));
+            }
+        } catch (SQLException e) {
+            log.error("Database error while reading {}.{}: {}", table, field, e.toString());
+            throw new IllegalStateException("Database error while reading " + table, e);
+        }
+    }
+
+    /* Table and column names cannot be bound as parameters, so only known ones are allowed */
+    private static void validateColumn(String table, String field) {
+        Set<String> columns = ALLOWED_COLUMNS.get(table);
+        if (columns == null || !columns.contains(field)) {
+            throw new IllegalArgumentException("Column not allowed: " + table + "." + field);
         }
     }
 }
