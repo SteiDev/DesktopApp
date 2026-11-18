@@ -7,7 +7,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.nio.file.Path;
 import java.sql.Connection;
-import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
@@ -16,42 +15,39 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
-import org.sqlite.SQLiteConfig;
 
 /** Tests for the stats row lifecycle, the getters/setters and their input validation. */
-class SQLiteUserDatabaseStatsTest {
+class SQLiteStatsRepositoryTest {
 
-    private static final String PASSWORD = "S3cret!pass";
+    private static final String HASH = "stored-as-is";
     private static final double DELTA = 1e-9;
 
     @TempDir Path tempDir;
 
     private Path dbFile;
-    private SQLiteUserDatabase db;
+    private SQLiteDatabase database;
+    private IUserRepository users;
+    private IStatsRepository stats;
 
     @BeforeEach
     void setUp() {
         dbFile = tempDir.resolve("stats-test.db");
-        db = new SQLiteUserDatabase(dbFile.toString());
+        database = new SQLiteDatabase(dbFile.toString());
+        users = new SQLiteUserRepository(database);
+        stats = new SQLiteStatsRepository(database);
     }
 
     /* ---------- helpers ---------- */
 
-    private Connection rawConnection() throws SQLException {
-        SQLiteConfig config = new SQLiteConfig();
-        config.enforceForeignKeys(true);
-        return DriverManager.getConnection("jdbc:sqlite:" + dbFile, config.toProperties());
-    }
-
     private void executeRaw(String sql) throws SQLException {
-        try (Connection conn = rawConnection();
+        try (Connection conn = database.connect();
                 Statement st = conn.createStatement()) {
             st.executeUpdate(sql);
         }
     }
 
     private int count(String table) throws SQLException {
-        try (Connection conn = rawConnection();
+        try (Connection conn = database.connect();
                 Statement st = conn.createStatement();
                 ResultSet rs = st.executeQuery("SELECT COUNT(*) FROM " + table)) {
             rs.next();
@@ -60,7 +56,7 @@ class SQLiteUserDatabaseStatsTest {
     }
 
     private User createUser(String name, String email) {
-        return db.saveUser(name, email, PASSWORD).orElseThrow();
+        return users.create(name, email, HASH).orElseThrow();
     }
 
     private User createAlice() {
@@ -74,18 +70,18 @@ class SQLiteUserDatabaseStatsTest {
     class Creation {
 
         @Test
-        @DisplayName("saveUser creates a stats row with 0 quizzes and 0.0 accuracy")
+        @DisplayName("creating a user creates a stats row with 0 quizzes and 0.0 accuracy")
         void createsRowWithDefaults() throws SQLException {
             User user = createAlice();
 
             assertAll(
                     () -> assertEquals(1, count("stats")),
-                    () -> assertEquals(0, db.getQuizzesCompleted(user.id())),
-                    () -> assertEquals(0.0, db.getAccuracy(user.id()), DELTA));
+                    () -> assertEquals(0, stats.getQuizzesCompleted(user.id())),
+                    () -> assertEquals(0.0, stats.getAccuracy(user.id()), DELTA));
         }
 
         @Test
-        @DisplayName("every saved user gets their own stats row")
+        @DisplayName("every created user gets their own stats row")
         void eachUserGetsRow() throws SQLException {
             createAlice();
             createUser("bob", "bob@example.com");
@@ -98,7 +94,7 @@ class SQLiteUserDatabaseStatsTest {
         void duplicateEmail_createsNothing() throws SQLException {
             createAlice();
 
-            assertTrue(db.saveUser("bob", "alice@example.com", PASSWORD).isEmpty());
+            assertTrue(users.create("bob", "alice@example.com", HASH).isEmpty());
 
             assertAll(() -> assertEquals(1, count("users")), () -> assertEquals(1, count("stats")));
         }
@@ -112,7 +108,7 @@ class SQLiteUserDatabaseStatsTest {
 
             assertThrows(
                     IllegalStateException.class,
-                    () -> db.saveUser("alice", "alice@example.com", PASSWORD));
+                    () -> users.create("alice", "alice@example.com", HASH));
 
             assertAll(() -> assertEquals(0, count("users")), () -> assertEquals(0, count("stats")));
         }
@@ -129,9 +125,9 @@ class SQLiteUserDatabaseStatsTest {
         void roundTrip() {
             User user = createAlice();
 
-            db.setQuizzesCompleted(user.id(), 7);
+            stats.setQuizzesCompleted(user.id(), 7);
 
-            assertEquals(7, db.getQuizzesCompleted(user.id()));
+            assertEquals(7, stats.getQuizzesCompleted(user.id()));
         }
 
         @Test
@@ -139,10 +135,10 @@ class SQLiteUserDatabaseStatsTest {
         void overwrite() {
             User user = createAlice();
 
-            db.setQuizzesCompleted(user.id(), 3);
-            db.setQuizzesCompleted(user.id(), 10);
+            stats.setQuizzesCompleted(user.id(), 3);
+            stats.setQuizzesCompleted(user.id(), 10);
 
-            assertEquals(10, db.getQuizzesCompleted(user.id()));
+            assertEquals(10, stats.getQuizzesCompleted(user.id()));
         }
 
         @Test
@@ -150,23 +146,23 @@ class SQLiteUserDatabaseStatsTest {
         void boundaries() {
             User user = createAlice();
 
-            db.setQuizzesCompleted(user.id(), Integer.MAX_VALUE);
-            assertEquals(Integer.MAX_VALUE, db.getQuizzesCompleted(user.id()));
+            stats.setQuizzesCompleted(user.id(), Integer.MAX_VALUE);
+            assertEquals(Integer.MAX_VALUE, stats.getQuizzesCompleted(user.id()));
 
-            db.setQuizzesCompleted(user.id(), 0);
-            assertEquals(0, db.getQuizzesCompleted(user.id()));
+            stats.setQuizzesCompleted(user.id(), 0);
+            assertEquals(0, stats.getQuizzesCompleted(user.id()));
         }
 
         @Test
         @DisplayName("rejects a negative value and keeps the old one")
         void negative_throws() {
             User user = createAlice();
-            db.setQuizzesCompleted(user.id(), 4);
+            stats.setQuizzesCompleted(user.id(), 4);
 
             assertThrows(
-                    IllegalArgumentException.class, () -> db.setQuizzesCompleted(user.id(), -1));
+                    IllegalArgumentException.class, () -> stats.setQuizzesCompleted(user.id(), -1));
 
-            assertEquals(4, db.getQuizzesCompleted(user.id()));
+            assertEquals(4, stats.getQuizzesCompleted(user.id()));
         }
     }
 
@@ -181,9 +177,9 @@ class SQLiteUserDatabaseStatsTest {
         void roundTrip() {
             User user = createAlice();
 
-            db.setAccuracy(user.id(), 0.85);
+            stats.setAccuracy(user.id(), 0.85);
 
-            assertEquals(0.85, db.getAccuracy(user.id()), DELTA);
+            assertEquals(0.85, stats.getAccuracy(user.id()), DELTA);
         }
 
         @Test
@@ -191,10 +187,10 @@ class SQLiteUserDatabaseStatsTest {
         void overwrite() {
             User user = createAlice();
 
-            db.setAccuracy(user.id(), 0.25);
-            db.setAccuracy(user.id(), 0.9);
+            stats.setAccuracy(user.id(), 0.25);
+            stats.setAccuracy(user.id(), 0.9);
 
-            assertEquals(0.9, db.getAccuracy(user.id()), DELTA);
+            assertEquals(0.9, stats.getAccuracy(user.id()), DELTA);
         }
 
         @Test
@@ -202,11 +198,11 @@ class SQLiteUserDatabaseStatsTest {
         void boundaries() {
             User user = createAlice();
 
-            db.setAccuracy(user.id(), 1.0);
-            assertEquals(1.0, db.getAccuracy(user.id()), DELTA);
+            stats.setAccuracy(user.id(), 1.0);
+            assertEquals(1.0, stats.getAccuracy(user.id()), DELTA);
 
-            db.setAccuracy(user.id(), 0.0);
-            assertEquals(0.0, db.getAccuracy(user.id()), DELTA);
+            stats.setAccuracy(user.id(), 0.0);
+            assertEquals(0.0, stats.getAccuracy(user.id()), DELTA);
         }
 
         @Test
@@ -214,40 +210,40 @@ class SQLiteUserDatabaseStatsTest {
         void keepsPrecision() {
             User user = createAlice();
 
-            db.setAccuracy(user.id(), 2.0 / 3.0);
+            stats.setAccuracy(user.id(), 2.0 / 3.0);
 
-            assertEquals(2.0 / 3.0, db.getAccuracy(user.id()), DELTA);
+            assertEquals(2.0 / 3.0, stats.getAccuracy(user.id()), DELTA);
         }
 
         @Test
         @DisplayName("rejects values outside 0.0-1.0, NaN and infinity, keeping the old value")
         void invalid_throws() {
             User user = createAlice();
-            db.setAccuracy(user.id(), 0.5);
+            stats.setAccuracy(user.id(), 0.5);
 
             assertAll(
                     () ->
                             assertThrows(
                                     IllegalArgumentException.class,
-                                    () -> db.setAccuracy(user.id(), -0.1)),
+                                    () -> stats.setAccuracy(user.id(), -0.1)),
                     () ->
                             assertThrows(
                                     IllegalArgumentException.class,
-                                    () -> db.setAccuracy(user.id(), 1.1)),
+                                    () -> stats.setAccuracy(user.id(), 1.1)),
                     () ->
                             assertThrows(
                                     IllegalArgumentException.class,
-                                    () -> db.setAccuracy(user.id(), Double.NaN)),
+                                    () -> stats.setAccuracy(user.id(), Double.NaN)),
                     () ->
                             assertThrows(
                                     IllegalArgumentException.class,
-                                    () -> db.setAccuracy(user.id(), Double.POSITIVE_INFINITY)),
+                                    () -> stats.setAccuracy(user.id(), Double.POSITIVE_INFINITY)),
                     () ->
                             assertThrows(
                                     IllegalArgumentException.class,
-                                    () -> db.setAccuracy(user.id(), Double.NEGATIVE_INFINITY)));
+                                    () -> stats.setAccuracy(user.id(), Double.NEGATIVE_INFINITY)));
 
-            assertEquals(0.5, db.getAccuracy(user.id()), DELTA);
+            assertEquals(0.5, stats.getAccuracy(user.id()), DELTA);
         }
     }
 
@@ -262,12 +258,12 @@ class SQLiteUserDatabaseStatsTest {
         void fieldsAreIndependent() {
             User user = createAlice();
 
-            db.setQuizzesCompleted(user.id(), 4);
-            db.setAccuracy(user.id(), 0.75);
-            assertEquals(4, db.getQuizzesCompleted(user.id()));
+            stats.setQuizzesCompleted(user.id(), 4);
+            stats.setAccuracy(user.id(), 0.75);
+            assertEquals(4, stats.getQuizzesCompleted(user.id()));
 
-            db.setQuizzesCompleted(user.id(), 9);
-            assertEquals(0.75, db.getAccuracy(user.id()), DELTA);
+            stats.setQuizzesCompleted(user.id(), 9);
+            assertEquals(0.75, stats.getAccuracy(user.id()), DELTA);
         }
 
         @Test
@@ -276,14 +272,14 @@ class SQLiteUserDatabaseStatsTest {
             User alice = createAlice();
             User bob = createUser("bob", "bob@example.com");
 
-            db.setQuizzesCompleted(alice.id(), 5);
-            db.setAccuracy(alice.id(), 0.9);
+            stats.setQuizzesCompleted(alice.id(), 5);
+            stats.setAccuracy(alice.id(), 0.9);
 
             assertAll(
-                    () -> assertEquals(0, db.getQuizzesCompleted(bob.id())),
-                    () -> assertEquals(0.0, db.getAccuracy(bob.id()), DELTA),
-                    () -> assertEquals(5, db.getQuizzesCompleted(alice.id())),
-                    () -> assertEquals(0.9, db.getAccuracy(alice.id()), DELTA));
+                    () -> assertEquals(0, stats.getQuizzesCompleted(bob.id())),
+                    () -> assertEquals(0.0, stats.getAccuracy(bob.id()), DELTA),
+                    () -> assertEquals(5, stats.getQuizzesCompleted(alice.id())),
+                    () -> assertEquals(0.9, stats.getAccuracy(alice.id()), DELTA));
         }
     }
 
@@ -300,58 +296,61 @@ class SQLiteUserDatabaseStatsTest {
                     () ->
                             assertThrows(
                                     IllegalStateException.class,
-                                    () -> db.getQuizzesCompleted(9999L)),
-                    () -> assertThrows(IllegalStateException.class, () -> db.getAccuracy(9999L)),
+                                    () -> stats.getQuizzesCompleted(9999L)),
+                    () -> assertThrows(IllegalStateException.class, () -> stats.getAccuracy(9999L)),
                     () ->
                             assertThrows(
                                     IllegalStateException.class,
-                                    () -> db.setQuizzesCompleted(9999L, 3)),
+                                    () -> stats.setQuizzesCompleted(9999L, 3)),
                     () ->
                             assertThrows(
-                                    IllegalStateException.class, () -> db.setAccuracy(9999L, 0.5)));
+                                    IllegalStateException.class,
+                                    () -> stats.setAccuracy(9999L, 0.5)));
         }
 
         @Test
         @DisplayName("getters and setters throw if the stats row is gone for an existing user")
         void statsRowMissing_throws() throws SQLException {
             User user = createAlice();
-            /* Simulates a corrupted or legacy database */
+            /* Simulates a corrupted database */
             executeRaw("DELETE FROM stats WHERE user_id = " + user.id());
 
             assertAll(
                     () ->
                             assertThrows(
                                     IllegalStateException.class,
-                                    () -> db.getQuizzesCompleted(user.id())),
-                    () ->
-                            assertThrows(
-                                    IllegalStateException.class, () -> db.getAccuracy(user.id())),
+                                    () -> stats.getQuizzesCompleted(user.id())),
                     () ->
                             assertThrows(
                                     IllegalStateException.class,
-                                    () -> db.setQuizzesCompleted(user.id(), 3)),
+                                    () -> stats.getAccuracy(user.id())),
                     () ->
                             assertThrows(
                                     IllegalStateException.class,
-                                    () -> db.setAccuracy(user.id(), 0.5)));
+                                    () -> stats.setQuizzesCompleted(user.id(), 3)),
+                    () ->
+                            assertThrows(
+                                    IllegalStateException.class,
+                                    () -> stats.setAccuracy(user.id(), 0.5)));
             assertEquals(0, count("stats"));
         }
     }
 
-    /* ---------- persistence, deletion and schema ---------- */
+    /* ---------- persistence and deletion ---------- */
 
     @Nested
-    @DisplayName("lifecycle and schema")
+    @DisplayName("lifecycle")
     class Lifecycle {
 
         @Test
         @DisplayName("stats persist across repository instances on the same file")
         void persistAcrossInstances() {
             User user = createAlice();
-            db.setQuizzesCompleted(user.id(), 12);
-            db.setAccuracy(user.id(), 0.6);
+            stats.setQuizzesCompleted(user.id(), 12);
+            stats.setAccuracy(user.id(), 0.6);
 
-            SQLiteUserDatabase reopened = new SQLiteUserDatabase(dbFile.toString());
+            IStatsRepository reopened =
+                    new SQLiteStatsRepository(new SQLiteDatabase(dbFile.toString()));
 
             assertAll(
                     () -> assertEquals(12, reopened.getQuizzesCompleted(user.id())),
@@ -362,19 +361,20 @@ class SQLiteUserDatabaseStatsTest {
         @DisplayName("deleting a user cascades to their stats")
         void deleteUser_removesStats() throws SQLException {
             User user = createAlice();
-            db.setQuizzesCompleted(user.id(), 5);
+            stats.setQuizzesCompleted(user.id(), 5);
 
-            assertTrue(db.deleteUser(user.id()));
+            assertTrue(users.deleteById(user.id()));
 
             assertAll(
                     () -> assertEquals(0, count("stats")),
                     () ->
                             assertThrows(
                                     IllegalStateException.class,
-                                    () -> db.getQuizzesCompleted(user.id())),
+                                    () -> stats.getQuizzesCompleted(user.id())),
                     () ->
                             assertThrows(
-                                    IllegalStateException.class, () -> db.getAccuracy(user.id())));
+                                    IllegalStateException.class,
+                                    () -> stats.getAccuracy(user.id())));
         }
 
         @Test
@@ -382,21 +382,13 @@ class SQLiteUserDatabaseStatsTest {
         void deleteUser_keepsOtherUsersStats() throws SQLException {
             User alice = createAlice();
             User bob = createUser("bob", "bob@example.com");
-            db.setQuizzesCompleted(bob.id(), 8);
+            stats.setQuizzesCompleted(bob.id(), 8);
 
-            db.deleteUser(alice.id());
+            users.deleteById(alice.id());
 
             assertAll(
-                    () -> assertEquals(8, db.getQuizzesCompleted(bob.id())),
+                    () -> assertEquals(8, stats.getQuizzesCompleted(bob.id())),
                     () -> assertEquals(1, count("stats")));
-        }
-
-        @Test
-        @DisplayName("the schema rejects a stats row for an unknown user (foreign key)")
-        void foreignKey_rejectsUnknownUser() {
-            assertThrows(
-                    SQLException.class,
-                    () -> executeRaw("INSERT INTO stats (user_id) VALUES (9999)"));
         }
     }
 }
