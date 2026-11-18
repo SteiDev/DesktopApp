@@ -4,20 +4,20 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 
 /** Hashes and verifies passwords using BCrypt. */
 public final class BCryptPasswordService implements IPasswordService {
-    private static final int PASSWORD_STREGTH = 12;
+    private static final int PASSWORD_STRENGTH = 12;
 
-    private final BCryptPasswordEncoder encoder = new BCryptPasswordEncoder(PASSWORD_STREGTH);
+    private final BCryptPasswordEncoder encoder = new BCryptPasswordEncoder(PASSWORD_STRENGTH);
 
     /**
      * Hashes a raw password with a random salt.
      *
      * @param rawPassword the plain-text password; must not be null or empty
      * @return the BCrypt hash, never null
-     * @throws IllegalArgumentException if {@code passwordHash} is null or empty
+     * @throws IllegalArgumentException if {@code rawPassword} is null or empty
      */
     public String hash(String rawPassword) {
         if (rawPassword == null || rawPassword.isEmpty()) {
-            throw new IllegalArgumentException("passwordHash must not be null or empty");
+            throw new IllegalArgumentException("rawPassword must not be null or empty");
         }
 
         return encoder.encode(rawPassword);

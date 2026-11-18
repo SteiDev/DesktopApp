@@ -49,6 +49,7 @@ setup_env_vars() {
     local script_path="$(cd "$(dirname "$_src")" && pwd -P)/$(basename "$_src")"
     local script_dir="$(dirname "$script_path")"
     export DESKTOPAPP_ROOT="$(cd "$script_dir/.." && pwd -P)"
+    export PROJECT_NAME="DesktopApp"
 }
 
 set_java_version 25
