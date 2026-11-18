@@ -1,5 +1,6 @@
 package org.ssd.project.accounts;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.Locale;
 import java.util.Optional;
 import org.slf4j.Logger;
@@ -12,6 +13,10 @@ public final class AuthService {
     private final IUserRepository users;
     private final IPasswordService passwords;
 
+    @SuppressFBWarnings(
+            value = "EI_EXPOSE_REP2",
+            justification =
+                    "Collaborators are injected services, not data, and are meant to be shared")
     public AuthService(IUserRepository users, IPasswordService passwords) {
         this.users = users;
         this.passwords = passwords;
