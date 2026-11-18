@@ -46,10 +46,6 @@ public final class SQLiteDatabase {
             END
             """;
 
-    /* Covers users created before the trigger existed */
-    private static final String BACKFILL_STATS =
-            "INSERT OR IGNORE INTO stats (user_id) SELECT id FROM users";
-
     private final String url;
     private final Properties configProperties;
 
@@ -97,7 +93,6 @@ public final class SQLiteDatabase {
             st.execute(CREATE_USERS);
             st.execute(CREATE_STATS);
             st.execute(CREATE_STATS_TRIGGER);
-            st.execute(BACKFILL_STATS);
             log.info("Database schema ready ({})", url);
         } catch (SQLException e) {
             log.error("Could not initialize database schema", e);
