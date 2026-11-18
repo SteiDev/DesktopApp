@@ -5,7 +5,6 @@ import javafx.scene.Scene;
 import javafx.scene.control.Label;
 import javafx.scene.layout.StackPane;
 import javafx.stage.Stage;
-import org.ssd.project.accounts.*;
 
 public class Main extends Application {
     @Override
