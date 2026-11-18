@@ -10,11 +10,13 @@ import org.ssd.project.accounts.*;
 public class Main extends Application {
     @Override
     public void start(Stage stage) {
+        /*
         SQLiteDatabase db = new SQLiteDatabase();
         IUserRepository userRepo = new SQLiteUserRepository(db);
 
         AuthService authService = new AuthService(userRepo);
         IStatsRepository statsRepo = new SQLiteStatsRepository(db);
+         */
 
         String javaVersion = System.getProperty("java.version");
         String javafxVersion = System.getProperty("javafx.version");
