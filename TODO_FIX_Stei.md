@@ -8,10 +8,7 @@
 ## Architecture
 
 - **It isn't a JavaFX app yet.** `Main` is a hello-world label and nothing connects to the `accounts` package. You'll need login and register screens, a session holding the current `User`, and probably `javafx-fxml` (not in the pom) plus a `module-info.java` or a clear classpath setup.
-- **`SQLiteUserDatabase` creates its own `BCryptPasswordService`.** You already have `IPasswordService`, so inject it through the constructor, which also lets tests use a cheap fake.
-- **The database layer shouldn't hash or verify passwords.** Move that into an `AuthService` and let the repository only store and fetch rows. `IUserDatabase` currently mixes authentication, user CRUD and statistics; split it into `UserRepository`, `StatsRepository` and `AuthService`.
 - **`setQuizzesCompleted` and `setAccuracy` are lossy.** The caller reads, computes and writes absolute values, so two writes can overwrite each other. Store `quizzes_completed`, `correct_answers` and `total_answers`, expose one atomic `recordQuiz(id, correct, total)` using `UPDATE ... SET x = x + ?`, and derive accuracy.
-- **`updateField`/`getField` with whitelists is more machinery than needed.** With two stats columns, plain explicit SQL is simpler and SpotBugs won't flag dynamic SQL.
 - **Consider `PRAGMA journal_mode=WAL`** in the `SQLiteConfig` for better behavior with a GUI reading while writing.
 
 ## Validation and security
@@ -47,6 +44,5 @@
 
 ## Suggested next steps
 
-2. Refactor into `AuthService` and `UserRepository` with injected dependencies.
 3. Build the FXML login screen with a background-thread login.
 4. Decide whether accounts stay local or move behind a backend shared with the web Frontend.
