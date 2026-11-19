@@ -17,6 +17,8 @@ class AuthServiceSQLiteIntegrationTest {
     private static final String USERNAME = "alice";
     private static final String EMAIL = "alice@example.com";
     private static final String PASSWORD = "S3cret!pass";
+    private static final String NEW_USERNAME = "alice-renamed";
+    private static final String NEW_PASSWORD = "N3w!passw0rd";
 
     @TempDir Path tempDir;
 
@@ -92,5 +94,84 @@ class AuthServiceSQLiteIntegrationTest {
         assertAll(
                 () -> assertTrue(auth.login("' OR '1'='1", PASSWORD).isEmpty()),
                 () -> assertTrue(auth.login("nobody@example.com' OR '1'='1", PASSWORD).isEmpty()));
+    }
+
+    /* ---------- changeUsername / changePassword ---------- */
+
+    @Test
+    @DisplayName("a changed username is stored and returned on the next login")
+    void changeUsername_isPersisted() {
+        User saved = auth.register(USERNAME, EMAIL, PASSWORD).orElseThrow();
+
+        User updated = auth.changeUsername(saved.id(), NEW_USERNAME).orElseThrow();
+
+        assertAll(
+                () -> assertEquals(NEW_USERNAME, updated.username()),
+                () ->
+                        assertEquals(
+                                NEW_USERNAME, users.findById(saved.id()).orElseThrow().username()),
+                () ->
+                        assertEquals(
+                                NEW_USERNAME,
+                                auth.login(EMAIL, PASSWORD).orElseThrow().username()));
+    }
+
+    @Test
+    @DisplayName("a changed password is a new BCrypt hash; only the new password logs in")
+    void changePassword_replacesHash() {
+        User saved = auth.register(USERNAME, EMAIL, PASSWORD).orElseThrow();
+
+        User updated = auth.changePassword(saved.id(), PASSWORD, NEW_PASSWORD).orElseThrow();
+
+        assertAll(
+                () -> assertTrue(updated.passwordHash().startsWith("$2")),
+                () -> assertNotEquals(saved.passwordHash(), updated.passwordHash()),
+                () -> assertNotEquals(NEW_PASSWORD, updated.passwordHash()),
+                () -> assertTrue(auth.login(EMAIL, NEW_PASSWORD).isPresent()),
+                () -> assertTrue(auth.login(EMAIL, PASSWORD).isEmpty()));
+    }
+
+    @Test
+    @DisplayName("a wrong current password leaves the stored hash and the old login untouched")
+    void changePassword_wrongCurrentPassword_changesNothing() {
+        User saved = auth.register(USERNAME, EMAIL, PASSWORD).orElseThrow();
+
+        assertTrue(auth.changePassword(saved.id(), "wrong-password", NEW_PASSWORD).isEmpty());
+
+        assertAll(
+                () ->
+                        assertEquals(
+                                saved.passwordHash(),
+                                users.findById(saved.id()).orElseThrow().passwordHash()),
+                () -> assertTrue(auth.login(EMAIL, PASSWORD).isPresent()),
+                () -> assertTrue(auth.login(EMAIL, NEW_PASSWORD).isEmpty()));
+    }
+
+    @Test
+    @DisplayName("changing username and password keeps the user's stats")
+    void changes_keepStats() {
+        User saved = auth.register(USERNAME, EMAIL, PASSWORD).orElseThrow();
+        stats.setQuizzesCompleted(saved.id(), 5);
+        stats.setAccuracy(saved.id(), 0.8);
+
+        auth.changeUsername(saved.id(), NEW_USERNAME);
+        auth.changePassword(saved.id(), PASSWORD, NEW_PASSWORD);
+
+        assertAll(
+                () -> assertEquals(5, stats.getQuizzesCompleted(saved.id())),
+                () -> assertEquals(0.8, stats.getAccuracy(saved.id()), 1e-9));
+    }
+
+    @Test
+    @DisplayName("a deleted user cannot be changed")
+    void deletedUser_cannotBeChanged() {
+        User saved = auth.register(USERNAME, EMAIL, PASSWORD).orElseThrow();
+        users.deleteById(saved.id());
+
+        assertAll(
+                () -> assertTrue(auth.changeUsername(saved.id(), NEW_USERNAME).isEmpty()),
+                () ->
+                        assertTrue(
+                                auth.changePassword(saved.id(), PASSWORD, NEW_PASSWORD).isEmpty()));
     }
 }

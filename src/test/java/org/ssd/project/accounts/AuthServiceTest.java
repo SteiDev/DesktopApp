@@ -9,6 +9,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.util.Map;
 import java.util.Optional;
 import java.util.TreeMap;
+import java.util.function.UnaryOperator;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -24,6 +25,8 @@ class AuthServiceTest {
     private static final String USERNAME = "alice";
     private static final String EMAIL = "alice@example.com";
     private static final String PASSWORD = "S3cret!pass";
+    private static final String NEW_USERNAME = "alice-renamed";
+    private static final String NEW_PASSWORD = "N3w!passw0rd";
 
     private InMemoryUserRepository users;
     private AuthService auth;
@@ -70,8 +73,35 @@ class AuthServiceTest {
         }
 
         @Override
+        public Optional<User> findById(long id) {
+            return byEmail.values().stream().filter(user -> user.id() == id).findFirst();
+        }
+
+        @Override
+        public Optional<User> updateUsername(long id, String username) {
+            return replace(
+                    id, old -> new User(old.id(), username, old.email(), old.passwordHash()));
+        }
+
+        @Override
+        public Optional<User> updatePasswordHash(long id, String passwordHash) {
+            return replace(
+                    id, old -> new User(old.id(), old.username(), old.email(), passwordHash));
+        }
+
+        @Override
         public boolean deleteById(long id) {
             return byEmail.values().removeIf(user -> user.id() == id);
+        }
+
+        private Optional<User> replace(long id, UnaryOperator<User> change) {
+            return findById(id)
+                    .map(
+                            old -> {
+                                User updated = change.apply(old);
+                                byEmail.put(old.email(), updated);
+                                return updated;
+                            });
         }
 
         int size() {
@@ -279,6 +309,206 @@ class AuthServiceTest {
             assertTrue(result.isPresent());
             assertEquals(bob.id(), result.get().id());
             assertTrue(auth.login("bob@example.com", "alicePass1").isEmpty());
+        }
+    }
+
+    /* ---------- changeUsername ---------- */
+
+    @Nested
+    @DisplayName("changeUsername")
+    class ChangeUsername {
+
+        @Test
+        @DisplayName("returns the updated user and leaves the other fields alone")
+        void existingUser_returnsUpdatedUser() {
+            User saved = registerAlice();
+
+            Optional<User> updated = auth.changeUsername(saved.id(), NEW_USERNAME);
+
+            assertTrue(updated.isPresent());
+            assertAll(
+                    () -> assertEquals(saved.id(), updated.get().id()),
+                    () -> assertEquals(NEW_USERNAME, updated.get().username()),
+                    () -> assertEquals(EMAIL, updated.get().email()),
+                    () -> assertEquals(saved.passwordHash(), updated.get().passwordHash()));
+        }
+
+        @Test
+        @DisplayName("the new username shows up on the next login, and the password still works")
+        void persistsAcrossLogin() {
+            User saved = registerAlice();
+
+            auth.changeUsername(saved.id(), NEW_USERNAME);
+
+            assertEquals(NEW_USERNAME, auth.login(EMAIL, PASSWORD).orElseThrow().username());
+        }
+
+        @Test
+        @DisplayName("does not require the password")
+        void noPasswordNeeded() {
+            User saved = registerAlice();
+
+            assertTrue(auth.changeUsername(saved.id(), NEW_USERNAME).isPresent());
+        }
+
+        @Test
+        @DisplayName("returns empty for an unknown user")
+        void unknownUser_returnsEmpty() {
+            registerAlice();
+
+            assertTrue(auth.changeUsername(9999L, NEW_USERNAME).isEmpty());
+        }
+
+        @Test
+        @DisplayName("rejects a null or blank username and keeps the old one")
+        void invalidUsername_throws() {
+            User saved = registerAlice();
+
+            assertAll(
+                    () ->
+                            assertThrows(
+                                    IllegalArgumentException.class,
+                                    () -> auth.changeUsername(saved.id(), null)),
+                    () ->
+                            assertThrows(
+                                    IllegalArgumentException.class,
+                                    () -> auth.changeUsername(saved.id(), "   ")));
+
+            assertEquals(USERNAME, users.findById(saved.id()).orElseThrow().username());
+        }
+
+        @Test
+        @DisplayName("only changes the target user")
+        void onlyChangesTheTargetUser() {
+            User alice = registerAlice();
+            User bob = auth.register("bob", "bob@example.com", "bobPass22").orElseThrow();
+
+            auth.changeUsername(alice.id(), NEW_USERNAME);
+
+            assertEquals("bob", users.findById(bob.id()).orElseThrow().username());
+        }
+    }
+
+    /* ---------- changePassword ---------- */
+
+    @Nested
+    @DisplayName("changePassword")
+    class ChangePassword {
+
+        @Test
+        @DisplayName("returns the updated user and leaves the other fields alone")
+        void correctCurrentPassword_returnsUpdatedUser() {
+            User saved = registerAlice();
+
+            Optional<User> updated = auth.changePassword(saved.id(), PASSWORD, NEW_PASSWORD);
+
+            assertTrue(updated.isPresent());
+            assertAll(
+                    () -> assertEquals(saved.id(), updated.get().id()),
+                    () -> assertEquals(USERNAME, updated.get().username()),
+                    () -> assertEquals(EMAIL, updated.get().email()),
+                    () -> assertNotEquals(saved.passwordHash(), updated.get().passwordHash()));
+        }
+
+        @Test
+        @DisplayName("stores a hash of the new password, never the raw one")
+        void newPasswordIsHashed() {
+            User saved = registerAlice();
+
+            User updated = auth.changePassword(saved.id(), PASSWORD, NEW_PASSWORD).orElseThrow();
+
+            assertAll(
+                    () -> assertNotEquals(NEW_PASSWORD, updated.passwordHash()),
+                    () -> assertEquals("hashed:" + NEW_PASSWORD, updated.passwordHash()));
+        }
+
+        @Test
+        @DisplayName("the new password logs in and the old one no longer does")
+        void newPasswordWorks_oldPasswordDoesNot() {
+            User saved = registerAlice();
+
+            auth.changePassword(saved.id(), PASSWORD, NEW_PASSWORD);
+
+            assertAll(
+                    () -> assertTrue(auth.login(EMAIL, NEW_PASSWORD).isPresent()),
+                    () -> assertTrue(auth.login(EMAIL, PASSWORD).isEmpty()));
+        }
+
+        @Test
+        @DisplayName("a wrong current password returns empty and keeps the old password")
+        void wrongCurrentPassword_returnsEmpty() {
+            User saved = registerAlice();
+
+            assertTrue(auth.changePassword(saved.id(), "wrong-password", NEW_PASSWORD).isEmpty());
+
+            assertAll(
+                    () ->
+                            assertEquals(
+                                    saved.passwordHash(),
+                                    users.findById(saved.id()).orElseThrow().passwordHash()),
+                    () -> assertTrue(auth.login(EMAIL, PASSWORD).isPresent()),
+                    () -> assertTrue(auth.login(EMAIL, NEW_PASSWORD).isEmpty()));
+        }
+
+        @Test
+        @DisplayName("a null current password returns empty and keeps the old password")
+        void nullCurrentPassword_returnsEmpty() {
+            User saved = registerAlice();
+
+            assertTrue(auth.changePassword(saved.id(), null, NEW_PASSWORD).isEmpty());
+
+            assertTrue(auth.login(EMAIL, PASSWORD).isPresent());
+        }
+
+        @Test
+        @DisplayName("returns empty for an unknown user")
+        void unknownUser_returnsEmpty() {
+            registerAlice();
+
+            assertTrue(auth.changePassword(9999L, PASSWORD, NEW_PASSWORD).isEmpty());
+        }
+
+        @Test
+        @DisplayName("rejects a null or blank new password and keeps the old one")
+        void invalidNewPassword_throws() {
+            User saved = registerAlice();
+
+            assertAll(
+                    () ->
+                            assertThrows(
+                                    IllegalArgumentException.class,
+                                    () -> auth.changePassword(saved.id(), PASSWORD, null)),
+                    () ->
+                            assertThrows(
+                                    IllegalArgumentException.class,
+                                    () -> auth.changePassword(saved.id(), PASSWORD, "   ")));
+
+            assertTrue(auth.login(EMAIL, PASSWORD).isPresent());
+        }
+
+        @Test
+        @DisplayName("only changes the target user")
+        void onlyChangesTheTargetUser() {
+            User alice = registerAlice();
+            auth.register("bob", "bob@example.com", "bobPass22");
+
+            auth.changePassword(alice.id(), PASSWORD, NEW_PASSWORD);
+
+            assertTrue(auth.login("bob@example.com", "bobPass22").isPresent());
+        }
+
+        @Test
+        @DisplayName("the password can be changed more than once")
+        void changeTwice() {
+            User saved = registerAlice();
+
+            auth.changePassword(saved.id(), PASSWORD, NEW_PASSWORD);
+            auth.changePassword(saved.id(), NEW_PASSWORD, "Th1rd!passw0rd");
+
+            assertAll(
+                    () -> assertTrue(auth.login(EMAIL, "Th1rd!passw0rd").isPresent()),
+                    () -> assertTrue(auth.login(EMAIL, NEW_PASSWORD).isEmpty()),
+                    () -> assertTrue(auth.login(EMAIL, PASSWORD).isEmpty()));
         }
     }
 }
