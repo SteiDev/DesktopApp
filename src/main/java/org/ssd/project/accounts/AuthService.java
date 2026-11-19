@@ -76,7 +76,8 @@ public final class AuthService {
         return users.updateUsername(userId, newUsername);
     }
 
-    public Optional<User> changePassword(long userId, String currentRawPassword, String newRawPassword) {
+    public Optional<User> changePassword(
+            long userId, String currentRawPassword, String newRawPassword) {
         requireNonBlank(newRawPassword, "new password");
 
         Optional<User> user = users.findById(userId);

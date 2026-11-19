@@ -26,6 +26,9 @@ public final class SQLiteUserRepository implements IUserRepository {
             "UPDATE users SET password_hash = ? WHERE id = ? "
                     + "RETURNING id, username, email, password_hash";
 
+    private static final String SELECT_BY_ID =
+            "SELECT id, username, email, password_hash FROM users WHERE id = ?";
+
     private final SQLiteDatabase db;
 
     public SQLiteUserRepository(SQLiteDatabase db) {
@@ -110,7 +113,7 @@ public final class SQLiteUserRepository implements IUserRepository {
     @Override
     public Optional<User> updateUsername(long id, String username) {
         try (Connection conn = db.connect();
-             PreparedStatement ps = conn.prepareStatement(UPDATE_USERNAME)) {
+                PreparedStatement ps = conn.prepareStatement(UPDATE_USERNAME)) {
             ps.setString(1, username);
             ps.setLong(2, id);
             try (ResultSet rs = ps.executeQuery()) {
@@ -135,7 +138,7 @@ public final class SQLiteUserRepository implements IUserRepository {
     @Override
     public Optional<User> updatePasswordHash(long id, String passwordHash) {
         try (Connection conn = db.connect();
-             PreparedStatement ps = conn.prepareStatement(UPDATE_PASSWORD_HASH)) {
+                PreparedStatement ps = conn.prepareStatement(UPDATE_PASSWORD_HASH)) {
             ps.setString(1, passwordHash);
             ps.setLong(2, id);
             try (ResultSet rs = ps.executeQuery()) {
@@ -146,6 +149,20 @@ public final class SQLiteUserRepository implements IUserRepository {
         } catch (SQLException e) {
             log.error("Database error while updating password for id={}: {}", id, e.toString());
             throw new IllegalStateException("Database error while updating password", e);
+        }
+    }
+
+    @Override
+    public Optional<User> findById(long id) {
+        try (Connection conn = db.connect();
+                PreparedStatement ps = conn.prepareStatement(SELECT_BY_ID)) {
+            ps.setLong(1, id);
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next() ? Optional.of(mapUser(rs)) : Optional.empty();
+            }
+        } catch (SQLException e) {
+            log.error("Database error while looking up user id={}: {}", id, e.toString());
+            throw new IllegalStateException("Database error while looking up user", e);
         }
     }
 }

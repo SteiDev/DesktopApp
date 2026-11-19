@@ -14,6 +14,8 @@ public interface IUserRepository {
 
     Optional<User> findByEmail(String email);
 
+    Optional<User> findById(long id);
+
     Optional<User> updateUsername(long id, String newUsername);
 
     Optional<User> updatePasswordHash(long id, String newRawPassword);
