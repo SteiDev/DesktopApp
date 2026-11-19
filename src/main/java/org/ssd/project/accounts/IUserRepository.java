@@ -14,6 +14,10 @@ public interface IUserRepository {
 
     Optional<User> findByEmail(String email);
 
+    Optional<User> updateUsername(long id, String newUsername);
+
+    Optional<User> updatePasswordHash(long id, String newRawPassword);
+
     /**
      * @return {@code true} if a user was deleted (their stats are removed by cascade)
      */

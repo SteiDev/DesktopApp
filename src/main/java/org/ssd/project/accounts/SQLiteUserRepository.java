@@ -19,6 +19,12 @@ public final class SQLiteUserRepository implements IUserRepository {
     private static final String SELECT_BY_EMAIL =
             "SELECT id, username, email, password_hash FROM users WHERE email = ?";
     private static final String DELETE_BY_ID = "DELETE FROM users WHERE id = ?";
+    private static final String UPDATE_USERNAME =
+            "UPDATE users SET username = ? WHERE id = ? "
+                    + "RETURNING id, username, email, password_hash";
+    private static final String UPDATE_PASSWORD_HASH =
+            "UPDATE users SET password_hash = ? WHERE id = ? "
+                    + "RETURNING id, username, email, password_hash";
 
     private final SQLiteDatabase db;
 
@@ -98,6 +104,48 @@ public final class SQLiteUserRepository implements IUserRepository {
         } catch (SQLException e) {
             log.error("Database error while deleting user id={}: {}", id, e.toString());
             throw new IllegalStateException("Database error while deleting user", e);
+        }
+    }
+
+    @Override
+    public Optional<User> updateUsername(long id, String username) {
+        try (Connection conn = db.connect();
+             PreparedStatement ps = conn.prepareStatement(UPDATE_USERNAME)) {
+            ps.setString(1, username);
+            ps.setLong(2, id);
+            try (ResultSet rs = ps.executeQuery()) {
+                Optional<User> updated = rs.next() ? Optional.of(mapUser(rs)) : Optional.empty();
+                log.info("Update username for user id={} (updated={})", id, updated.isPresent());
+                return updated;
+            }
+        } catch (SQLException e) {
+            log.error("Database error while updating username for id={}: {}", id, e.toString());
+            throw new IllegalStateException("Database error while updating username", e);
+        }
+    }
+
+    private static User mapUser(ResultSet rs) throws SQLException {
+        return new User(
+                rs.getLong("id"),
+                rs.getString("username"),
+                rs.getString("email"),
+                rs.getString("password_hash"));
+    }
+
+    @Override
+    public Optional<User> updatePasswordHash(long id, String passwordHash) {
+        try (Connection conn = db.connect();
+             PreparedStatement ps = conn.prepareStatement(UPDATE_PASSWORD_HASH)) {
+            ps.setString(1, passwordHash);
+            ps.setLong(2, id);
+            try (ResultSet rs = ps.executeQuery()) {
+                Optional<User> updated = rs.next() ? Optional.of(mapUser(rs)) : Optional.empty();
+                log.info("Update password for user id={} (updated={})", id, updated.isPresent());
+                return updated;
+            }
+        } catch (SQLException e) {
+            log.error("Database error while updating password for id={}: {}", id, e.toString());
+            throw new IllegalStateException("Database error while updating password", e);
         }
     }
 }

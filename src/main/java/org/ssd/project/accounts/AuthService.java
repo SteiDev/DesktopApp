@@ -70,4 +70,22 @@ public final class AuthService {
             throw new IllegalArgumentException(name + " must not be null or blank");
         }
     }
+
+    public Optional<User> changeUsername(long userId, String newUsername) {
+        requireNonBlank(newUsername, "username");
+        return users.updateUsername(userId, newUsername);
+    }
+
+    public Optional<User> changePassword(long userId, String currentRawPassword, String newRawPassword) {
+        requireNonBlank(newRawPassword, "new password");
+
+        Optional<User> user = users.findById(userId);
+        if (user.isEmpty()
+                || currentRawPassword == null
+                || !passwords.verify(currentRawPassword, user.get().passwordHash())) {
+            log.warn("Rejected password change for user id={}", userId);
+            return Optional.empty();
+        }
+        return users.updatePasswordHash(userId, passwords.hash(newRawPassword));
+    }
 }
