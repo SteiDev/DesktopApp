@@ -27,6 +27,7 @@
         <sqlite-jdbc.version>3.53.4.0</sqlite-jdbc.version>
         <spring-security-crypto.version>7.1.2</spring-security-crypto.version>
         <slf4j.version>2.0.20</slf4j.version>
+        <dotenv-java.version>3.2.0</dotenv-java.version>
 
         <!-- Plugin version -->
         <jar.plugin.version>3.5.1</jar.plugin.version>
@@ -189,6 +190,13 @@
             <artifactId>spotbugs-annotations</artifactId>
             <version>${spotbugs.plugin.version}</version>
             <scope>provided</scope>
+        </dependency>
+
+        <!-- Environment Variable loading -->
+        <dependency>
+            <groupId>io.github.cdimascio</groupId>
+            <artifactId>dotenv-java</artifactId>
+            <version>${dotenv-java.version}</version>
         </dependency>
 
     </dependencies>

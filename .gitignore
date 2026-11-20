@@ -46,3 +46,6 @@ out
 build
 target
 *.log
+
+### Env ###
+*.env
