@@ -6,10 +6,14 @@ import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.nio.file.Path;
+import java.time.Clock;
+import java.util.ArrayList;
+import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.ssd.project.email.IEmailService;
 
 /** Wiring test: {@link AuthService} on top of the real SQLite repositories and real BCrypt. */
 class AuthServiceSQLiteIntegrationTest {
@@ -24,20 +28,45 @@ class AuthServiceSQLiteIntegrationTest {
 
     private IUserRepository users;
     private IStatsRepository stats;
+    private Mailbox mailbox;
     private AuthService auth;
+
+    /** Captures verification codes sent during registration. */
+    private static final class Mailbox implements IEmailService {
+        final List<String> codes = new ArrayList<>();
+
+        @Override
+        public void sendWelcomeEmail(User user) {}
+
+        @Override
+        public void sendVerificationEmail(String username, String email, String code) {
+            codes.add(code);
+        }
+
+        String last() {
+            return codes.get(codes.size() - 1);
+        }
+    }
 
     @BeforeEach
     void setUp() {
         SQLiteDatabase database = new SQLiteDatabase(tempDir.resolve("auth-test.db").toString());
         users = new SQLiteUserRepository(database);
         stats = new SQLiteStatsRepository(database);
-        auth = new AuthService(users, new BCryptPasswordService());
+        mailbox = new Mailbox();
+        auth = new AuthService(users, new BCryptPasswordService(), mailbox, Clock.systemUTC());
+    }
+
+    /** Helper: runs the full start→complete registration flow and returns the created user. */
+    private User register(String username, String email, String password) {
+        auth.startRegistration(username, email, password);
+        return auth.completeRegistration(email, mailbox.last()).user();
     }
 
     @Test
     @DisplayName("register stores a BCrypt hash, never the raw password")
     void register_storesBCryptHash() {
-        User saved = auth.register(USERNAME, EMAIL, PASSWORD).orElseThrow();
+        User saved = register(USERNAME, EMAIL, PASSWORD);
 
         User stored = users.findByEmail(EMAIL).orElseThrow();
         assertAll(
@@ -49,7 +78,7 @@ class AuthServiceSQLiteIntegrationTest {
     @Test
     @DisplayName("a registered user can log in, whatever the case of the email")
     void register_thenLogin() {
-        User saved = auth.register(USERNAME, "  Alice@Example.COM ", PASSWORD).orElseThrow();
+        User saved = register(USERNAME, "  Alice@Example.COM ", PASSWORD);
 
         assertAll(
                 () -> assertEquals(EMAIL, saved.email()),
@@ -61,15 +90,17 @@ class AuthServiceSQLiteIntegrationTest {
     @Test
     @DisplayName("registering the same email twice is rejected")
     void duplicateRegistration_returnsEmpty() {
-        auth.register(USERNAME, EMAIL, PASSWORD).orElseThrow();
+        register(USERNAME, EMAIL, PASSWORD);
 
-        assertTrue(auth.register("bob", "  ALICE@EXAMPLE.COM ", "otherPass1").isEmpty());
+        assertEquals(
+                AuthService.StartResult.EMAIL_TAKEN,
+                auth.startRegistration("bob", "  ALICE@EXAMPLE.COM ", "otherPass1"));
     }
 
     @Test
     @DisplayName("a registered user starts with default stats")
     void register_createsDefaultStats() {
-        User saved = auth.register(USERNAME, EMAIL, PASSWORD).orElseThrow();
+        User saved = register(USERNAME, EMAIL, PASSWORD);
 
         assertAll(
                 () -> assertEquals(0, stats.getQuizzesCompleted(saved.id())),
@@ -79,7 +110,7 @@ class AuthServiceSQLiteIntegrationTest {
     @Test
     @DisplayName("a deleted user can no longer log in")
     void deletedUser_cannotLogIn() {
-        User saved = auth.register(USERNAME, EMAIL, PASSWORD).orElseThrow();
+        User saved = register(USERNAME, EMAIL, PASSWORD);
 
         assertTrue(users.deleteById(saved.id()));
 
@@ -89,7 +120,7 @@ class AuthServiceSQLiteIntegrationTest {
     @Test
     @DisplayName("login is not fooled by SQL injection in the email")
     void sqlInjectionInEmail_returnsEmpty() {
-        auth.register(USERNAME, EMAIL, PASSWORD).orElseThrow();
+        register(USERNAME, EMAIL, PASSWORD);
 
         assertAll(
                 () -> assertTrue(auth.login("' OR '1'='1", PASSWORD).isEmpty()),
@@ -101,7 +132,7 @@ class AuthServiceSQLiteIntegrationTest {
     @Test
     @DisplayName("a changed username is stored and returned on the next login")
     void changeUsername_isPersisted() {
-        User saved = auth.register(USERNAME, EMAIL, PASSWORD).orElseThrow();
+        User saved = register(USERNAME, EMAIL, PASSWORD);
 
         User updated = auth.changeUsername(saved.id(), NEW_USERNAME).orElseThrow();
 
@@ -119,7 +150,7 @@ class AuthServiceSQLiteIntegrationTest {
     @Test
     @DisplayName("a changed password is a new BCrypt hash; only the new password logs in")
     void changePassword_replacesHash() {
-        User saved = auth.register(USERNAME, EMAIL, PASSWORD).orElseThrow();
+        User saved = register(USERNAME, EMAIL, PASSWORD);
 
         User updated = auth.changePassword(saved.id(), PASSWORD, NEW_PASSWORD).orElseThrow();
 
@@ -134,7 +165,7 @@ class AuthServiceSQLiteIntegrationTest {
     @Test
     @DisplayName("a wrong current password leaves the stored hash and the old login untouched")
     void changePassword_wrongCurrentPassword_changesNothing() {
-        User saved = auth.register(USERNAME, EMAIL, PASSWORD).orElseThrow();
+        User saved = register(USERNAME, EMAIL, PASSWORD);
 
         assertTrue(auth.changePassword(saved.id(), "wrong-password", NEW_PASSWORD).isEmpty());
 
@@ -150,7 +181,7 @@ class AuthServiceSQLiteIntegrationTest {
     @Test
     @DisplayName("changing username and password keeps the user's stats")
     void changes_keepStats() {
-        User saved = auth.register(USERNAME, EMAIL, PASSWORD).orElseThrow();
+        User saved = register(USERNAME, EMAIL, PASSWORD);
         stats.setQuizzesCompleted(saved.id(), 5);
         stats.setAccuracy(saved.id(), 0.8);
 
@@ -165,7 +196,7 @@ class AuthServiceSQLiteIntegrationTest {
     @Test
     @DisplayName("a deleted user cannot be changed")
     void deletedUser_cannotBeChanged() {
-        User saved = auth.register(USERNAME, EMAIL, PASSWORD).orElseThrow();
+        User saved = register(USERNAME, EMAIL, PASSWORD);
         users.deleteById(saved.id());
 
         assertAll(

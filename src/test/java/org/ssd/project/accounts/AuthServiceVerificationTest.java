@@ -141,8 +141,9 @@ class AuthServiceVerificationTest {
     }
 
     @Test
-    void startAfterPlainRegisterIsEmailTaken() {
-        auth.register("bob", EMAIL, "pw");
+    void startAfterExistingAccountIsEmailTaken() {
+        // Seed the repo with an already-verified account, then confirm startRegistration rejects it
+        repo.create("bob", EMAIL, "h:pw");
         assertEquals(
                 AuthService.StartResult.EMAIL_TAKEN, auth.startRegistration("bob", EMAIL, "pw"));
         assertTrue(mailbox.codes.isEmpty());

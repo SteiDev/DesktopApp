@@ -85,20 +85,6 @@ public final class AuthService {
     }
 
     /**
-     * @return the new user, or empty if the email is already registered
-     */
-    public Optional<User> register(String username, String email, String rawPassword) {
-        requireNonBlank(username, "username");
-        requireNonBlank(email, "email");
-        requireNonBlank(rawPassword, "password");
-
-        Optional<User> created =
-                users.create(username, normalizeEmail(email), passwords.hash(rawPassword));
-        created.ifPresent(this::sendWelcomeEmail);
-        return created;
-    }
-
-    /**
      * @return the user if the credentials match, otherwise empty
      */
     public Optional<User> login(String email, String rawPassword) {

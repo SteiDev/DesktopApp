@@ -6,6 +6,9 @@ import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.time.Clock;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.TreeMap;
@@ -14,6 +17,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.ssd.project.email.IEmailService;
 
 /**
  * Unit tests for {@link AuthService} using an in-memory repository and a trivial password service,
@@ -29,15 +33,34 @@ class AuthServiceTest {
     private static final String NEW_PASSWORD = "N3w!passw0rd";
 
     private InMemoryUserRepository users;
+    private Mailbox mailbox;
     private AuthService auth;
 
     @BeforeEach
     void setUp() {
         users = new InMemoryUserRepository();
-        auth = new AuthService(users, new FakePasswordService());
+        mailbox = new Mailbox();
+        auth = new AuthService(users, new FakePasswordService(), mailbox, Clock.systemUTC());
     }
 
     /* ---------- test doubles ---------- */
+
+    /** Captures verification codes so tests can complete the two-step registration flow. */
+    private static final class Mailbox implements IEmailService {
+        final List<String> codes = new ArrayList<>();
+
+        @Override
+        public void sendWelcomeEmail(User user) {}
+
+        @Override
+        public void sendVerificationEmail(String username, String email, String code) {
+            codes.add(code);
+        }
+
+        String last() {
+            return codes.get(codes.size() - 1);
+        }
+    }
 
     /** Reversible on purpose, so tests can tell a hash from the raw password. */
     private static final class FakePasswordService implements IPasswordService {
@@ -110,7 +133,13 @@ class AuthServiceTest {
     }
 
     private User registerAlice() {
-        return auth.register(USERNAME, EMAIL, PASSWORD).orElseThrow();
+        return register(USERNAME, EMAIL, PASSWORD);
+    }
+
+    /** Helper: runs the full start→complete registration flow and returns the created user. */
+    private User register(String username, String email, String password) {
+        auth.startRegistration(username, email, password);
+        return auth.completeRegistration(email, mailbox.last()).user();
     }
 
     /* ---------- register ---------- */
@@ -122,13 +151,12 @@ class AuthServiceTest {
         @Test
         @DisplayName("stores a new user and returns it")
         void newUser_returnsUser() {
-            Optional<User> saved = auth.register(USERNAME, EMAIL, PASSWORD);
+            User saved = register(USERNAME, EMAIL, PASSWORD);
 
-            assertTrue(saved.isPresent());
             assertAll(
-                    () -> assertEquals(USERNAME, saved.get().username()),
-                    () -> assertEquals(EMAIL, saved.get().email()),
-                    () -> assertTrue(saved.get().id() > 0),
+                    () -> assertEquals(USERNAME, saved.username()),
+                    () -> assertEquals(EMAIL, saved.email()),
+                    () -> assertTrue(saved.id() > 0),
                     () -> assertEquals(1, users.size()));
         }
 
@@ -145,7 +173,7 @@ class AuthServiceTest {
         @Test
         @DisplayName("trims and lowercases the email before storing")
         void normalizesEmail() {
-            User saved = auth.register(USERNAME, "  Alice@Example.COM  ", PASSWORD).orElseThrow();
+            User saved = register(USERNAME, "  Alice@Example.COM  ", PASSWORD);
 
             assertEquals("alice@example.com", saved.email());
         }
@@ -155,7 +183,7 @@ class AuthServiceTest {
         void sameUsernameDifferentEmail_succeeds() {
             registerAlice();
 
-            assertTrue(auth.register(USERNAME, "alice2@example.com", PASSWORD).isPresent());
+            assertTrue(register(USERNAME, "alice2@example.com", PASSWORD) != null);
         }
 
         @Test
@@ -163,7 +191,9 @@ class AuthServiceTest {
         void duplicateEmail_returnsEmpty() {
             registerAlice();
 
-            assertTrue(auth.register("bob", EMAIL, "otherPass1").isEmpty());
+            assertEquals(
+                    AuthService.StartResult.EMAIL_TAKEN,
+                    auth.startRegistration("bob", EMAIL, "otherPass1"));
             assertEquals(1, users.size());
         }
 
@@ -172,7 +202,9 @@ class AuthServiceTest {
         void duplicateEmailDifferentCase_returnsEmpty() {
             registerAlice();
 
-            assertTrue(auth.register("bob", "  ALICE@EXAMPLE.COM ", "otherPass1").isEmpty());
+            assertEquals(
+                    AuthService.StartResult.EMAIL_TAKEN,
+                    auth.startRegistration("bob", "  ALICE@EXAMPLE.COM ", "otherPass1"));
         }
 
         @Test
@@ -182,11 +214,11 @@ class AuthServiceTest {
                     () ->
                             assertThrows(
                                     IllegalArgumentException.class,
-                                    () -> auth.register(null, EMAIL, PASSWORD)),
+                                    () -> auth.startRegistration(null, EMAIL, PASSWORD)),
                     () ->
                             assertThrows(
                                     IllegalArgumentException.class,
-                                    () -> auth.register("   ", EMAIL, PASSWORD)));
+                                    () -> auth.startRegistration("   ", EMAIL, PASSWORD)));
 
             assertEquals(0, users.size());
         }
@@ -198,11 +230,11 @@ class AuthServiceTest {
                     () ->
                             assertThrows(
                                     IllegalArgumentException.class,
-                                    () -> auth.register(USERNAME, null, PASSWORD)),
+                                    () -> auth.startRegistration(USERNAME, null, PASSWORD)),
                     () ->
                             assertThrows(
                                     IllegalArgumentException.class,
-                                    () -> auth.register(USERNAME, "  ", PASSWORD)));
+                                    () -> auth.startRegistration(USERNAME, "  ", PASSWORD)));
 
             assertEquals(0, users.size());
         }
@@ -214,11 +246,11 @@ class AuthServiceTest {
                     () ->
                             assertThrows(
                                     IllegalArgumentException.class,
-                                    () -> auth.register(USERNAME, EMAIL, null)),
+                                    () -> auth.startRegistration(USERNAME, EMAIL, null)),
                     () ->
                             assertThrows(
                                     IllegalArgumentException.class,
-                                    () -> auth.register(USERNAME, EMAIL, "   ")));
+                                    () -> auth.startRegistration(USERNAME, EMAIL, "   ")));
 
             assertEquals(0, users.size());
         }
@@ -301,8 +333,8 @@ class AuthServiceTest {
         @Test
         @DisplayName("picks the right user when several exist")
         void multipleUsers_returnsMatchingUser() {
-            auth.register("alice", "alice@example.com", "alicePass1");
-            User bob = auth.register("bob", "bob@example.com", "bobPass22").orElseThrow();
+            register("alice", "alice@example.com", "alicePass1");
+            User bob = register("bob", "bob@example.com", "bobPass22");
 
             Optional<User> result = auth.login("bob@example.com", "bobPass22");
 
@@ -381,7 +413,7 @@ class AuthServiceTest {
         @DisplayName("only changes the target user")
         void onlyChangesTheTargetUser() {
             User alice = registerAlice();
-            User bob = auth.register("bob", "bob@example.com", "bobPass22").orElseThrow();
+            User bob = register("bob", "bob@example.com", "bobPass22");
 
             auth.changeUsername(alice.id(), NEW_USERNAME);
 
@@ -490,7 +522,7 @@ class AuthServiceTest {
         @DisplayName("only changes the target user")
         void onlyChangesTheTargetUser() {
             User alice = registerAlice();
-            auth.register("bob", "bob@example.com", "bobPass22");
+            register("bob", "bob@example.com", "bobPass22");
 
             auth.changePassword(alice.id(), PASSWORD, NEW_PASSWORD);
 
