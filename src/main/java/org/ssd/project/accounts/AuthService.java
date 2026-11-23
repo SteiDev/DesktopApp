@@ -109,4 +109,8 @@ public final class AuthService {
             log.error("Welcome email failed for user id={}: {}", user.id(), e.toString());
         }
     }
+
+    public boolean deleteById(long id) {
+        return users.deleteById(id);
+    }
 }
