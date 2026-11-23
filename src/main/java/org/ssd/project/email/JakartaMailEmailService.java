@@ -27,7 +27,8 @@ import org.ssd.project.accounts.User;
 public final class JakartaMailEmailService implements IEmailService, AutoCloseable {
     private static final Logger log = LoggerFactory.getLogger(JakartaMailEmailService.class);
 
-    private static final String SUBJECT = "Welcome! Your account has been created";
+    private static final String WELCOME_SUBJECT = "Welcome! Your account has been created";
+    private static final String VERIFICATION_SUBJECT = "Your verification code";
     private static final int TIMEOUT_MILLIS = 10_000;
     private static final int SHUTDOWN_WAIT_SECONDS = 10;
 
@@ -87,16 +88,18 @@ public final class JakartaMailEmailService implements IEmailService, AutoCloseab
         };
     }
 
+    /* ------------------------------------------------------------------ welcome email */
+
     @Override
     public void sendWelcomeEmail(User user) {
         try {
-            executor.execute(() -> send(user));
+            executor.execute(() -> sendWelcome(user));
         } catch (RejectedExecutionException e) {
             log.error("Welcome email for user id={} not sent: service is shut down", user.id());
         }
     }
 
-    private void send(User user) {
+    private void sendWelcome(User user) {
         try {
             Transport.send(buildWelcomeMessage(user));
             log.info("Welcome email sent for user id={}", user.id());
@@ -112,7 +115,7 @@ public final class JakartaMailEmailService implements IEmailService, AutoCloseab
         message.setFrom(senderAddress());
         /* Strict parsing rejects malformed addresses, including ones with injected headers */
         message.setRecipients(Message.RecipientType.TO, InternetAddress.parse(user.email(), true));
-        message.setSubject(SUBJECT, "UTF-8");
+        message.setSubject(WELCOME_SUBJECT, "UTF-8");
         message.setText(welcomeBody(user.username()), "UTF-8");
         message.setSentDate(new Date());
         return message;
@@ -123,6 +126,47 @@ public final class JakartaMailEmailService implements IEmailService, AutoCloseab
                 + "You can now log in with this email address.%n%n".formatted()
                 + "If you did not create this account, you can ignore this message.%n".formatted();
     }
+
+    /* ------------------------------------------------------------------ verification email */
+
+    @Override
+    public void sendVerificationEmail(String username, String email, String code) {
+        try {
+            executor.execute(() -> sendVerification(username, email, code));
+        } catch (RejectedExecutionException e) {
+            log.error("Verification email not sent: service is shut down");
+        }
+    }
+
+    private void sendVerification(String username, String email, String code) {
+        try {
+            Transport.send(buildVerificationMessage(username, email, code));
+            log.info("Verification email sent");
+        } catch (MessagingException | RuntimeException e) {
+            log.error("Could not send verification email: {}", e.toString());
+        }
+    }
+
+    /* Package-private so tests can check the message without an SMTP server */
+    MimeMessage buildVerificationMessage(String username, String email, String code)
+            throws MessagingException {
+        MimeMessage message = new MimeMessage(session);
+        message.setFrom(senderAddress());
+        message.setRecipients(Message.RecipientType.TO, InternetAddress.parse(email, true));
+        message.setSubject(VERIFICATION_SUBJECT, "UTF-8");
+        message.setText(verificationBody(username, code), "UTF-8");
+        message.setSentDate(new Date());
+        return message;
+    }
+
+    private static String verificationBody(String username, String code) {
+        return ("Hi %s,%n%nYour verification code is: %s%n%n"
+                        + "It expires in 10 minutes. If you did not request this,"
+                        + " you can safely ignore this message.%n")
+                .formatted(username, code);
+    }
+
+    /* ------------------------------------------------------------------ lifecycle */
 
     /** Lets queued emails finish, then stops the sender thread. */
     @Override
