@@ -28,6 +28,7 @@
         <spring-security-crypto.version>7.1.2</spring-security-crypto.version>
         <slf4j.version>2.0.20</slf4j.version>
         <dotenv-java.version>3.2.0</dotenv-java.version>
+        <angus-mail.version>2.0.5</angus-mail.version>
 
         <!-- Plugin version -->
         <jar.plugin.version>3.5.1</jar.plugin.version>
@@ -197,6 +198,13 @@
             <groupId>io.github.cdimascio</groupId>
             <artifactId>dotenv-java</artifactId>
             <version>${dotenv-java.version}</version>
+        </dependency>
+
+        <!-- Mail Service implementation -->
+        <dependency>
+            <groupId>org.eclipse.angus</groupId>
+            <artifactId>angus-mail</artifactId>
+            <version>${angus-mail.version}</version>
         </dependency>
 
     </dependencies>

@@ -5,6 +5,7 @@ import java.util.Locale;
 import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.ssd.project.email.IEmailService;
 
 /** Registration and login. Owns input validation, email normalization and password hashing. */
 public final class AuthService {
@@ -12,18 +13,25 @@ public final class AuthService {
 
     private final IUserRepository users;
     private final IPasswordService passwords;
+    private final IEmailService emails;
 
     @SuppressFBWarnings(
             value = "EI_EXPOSE_REP2",
             justification =
                     "Collaborators are injected services, not data, and are meant to be shared")
-    public AuthService(IUserRepository users, IPasswordService passwords) {
+    public AuthService(IUserRepository users, IPasswordService passwords, IEmailService emails) {
         this.users = users;
         this.passwords = passwords;
+        this.emails = emails;
     }
 
-    public AuthService(IUserRepository users) {
-        this(users, new BCryptPasswordService());
+    /* Keeps your existing tests working: no email is sent */
+    public AuthService(IUserRepository users, IPasswordService passwords) {
+        this(users, passwords, user -> {});
+    }
+
+    public AuthService(IUserRepository users, IEmailService emails) {
+        this(users, new BCryptPasswordService(), emails);
     }
 
     /**
@@ -34,7 +42,10 @@ public final class AuthService {
         requireNonBlank(email, "email");
         requireNonBlank(rawPassword, "password");
 
-        return users.create(username, normalizeEmail(email), passwords.hash(rawPassword));
+        Optional<User> created =
+                users.create(username, normalizeEmail(email), passwords.hash(rawPassword));
+        created.ifPresent(this::sendWelcomeEmail);
+        return created;
     }
 
     /**
@@ -88,5 +99,14 @@ public final class AuthService {
             return Optional.empty();
         }
         return users.updatePasswordHash(userId, passwords.hash(newRawPassword));
+    }
+
+    private void sendWelcomeEmail(User user) {
+        try {
+            emails.sendWelcomeEmail(user);
+        } catch (RuntimeException e) {
+            /* The account exists already; a failed email must not fail the registration */
+            log.error("Welcome email failed for user id={}: {}", user.id(), e.toString());
+        }
     }
 }

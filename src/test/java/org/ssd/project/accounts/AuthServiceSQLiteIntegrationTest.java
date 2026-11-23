@@ -31,7 +31,7 @@ class AuthServiceSQLiteIntegrationTest {
         SQLiteDatabase database = new SQLiteDatabase(tempDir.resolve("auth-test.db").toString());
         users = new SQLiteUserRepository(database);
         stats = new SQLiteStatsRepository(database);
-        auth = new AuthService(users);
+        auth = new AuthService(users, new BCryptPasswordService());
     }
 
     @Test

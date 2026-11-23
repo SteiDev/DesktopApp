@@ -1,25 +1,27 @@
 package org.ssd.project;
 
-import io.github.cdimascio.dotenv.Dotenv;
 import javafx.application.Application;
 import javafx.scene.Scene;
 import javafx.scene.control.Label;
 import javafx.scene.layout.StackPane;
 import javafx.stage.Stage;
+import org.ssd.project.accounts.*;
 
 public class Main extends Application {
     @Override
     public void start(Stage stage) {
-        Dotenv.configure().systemProperties().load();
-
         /*
+        Dotenv dotenv = Dotenv.configure().ignoreIfMissing().load();
+        SmtpConfig smtpConfig = SmtpConfig.fromEnvironment(dotenv::get);
+        IEmailService emailService = new JakartaMailEmailService(smtpConfig);
         SQLiteDatabase db = new SQLiteDatabase();
         IUserRepository userRepo = new SQLiteUserRepository(db);
 
-        AuthService authService = new AuthService(userRepo);
+        AuthService authService = new AuthService(userRepo, emailService);
         IStatsRepository statsRepo = new SQLiteStatsRepository(db);
-         */
 
+        authService.register("John Cena", "PUT HERE AN ACTUAL EMAIL", "poopoo");
+        */
         String javaVersion = System.getProperty("java.version");
         String javafxVersion = System.getProperty("javafx.version");
         Label l =
